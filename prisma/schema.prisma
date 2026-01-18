@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+model appointments {
+  id               BigInt   @id @default(autoincrement())
+  patient_id       BigInt
+  doctor_id        BigInt
+  appointment_date DateTime @db.Date
+  chief_complaint  String
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  start_at         DateTime @db.Timestamptz(6)
+  end_at           DateTime @db.Timestamptz(6)
+  doctors          doctors  @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  patients         patients @relation(fields: [patient_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([appointment_date, doctor_id], map: "idx_appointments_date_doctor")
+}
+
+model blood_types {
+  id       Int        @id @default(autoincrement()) @db.SmallInt
+  code     String     @unique @db.VarChar(3)
+  patients patients[]
+}
+
+model countries {
+  id         BigInt      @id @default(autoincrement())
+  name       String      @unique @db.VarChar(100)
+  phone_code String      @db.VarChar(5)
+  doctors    doctors[]
+  hospitals  hospitals[]
+  patients   patients[]
+}
+
+model credential_types {
+  id                 Int                  @id @default(autoincrement()) @db.SmallInt
+  name               String               @unique @db.VarChar(50)
+  doctor_credentials doctor_credentials[]
+}
+
+model disease_categories {
+  id       Int        @id @default(autoincrement()) @db.SmallInt
+  name     String     @unique @db.VarChar(100)
+  diseases diseases[]
+}
+
+model diseases {
+  id                 BigInt             @id @default(autoincrement())
+  name               String             @db.VarChar(100)
+  category_id        Int                @db.SmallInt
+  disease_categories disease_categories @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  medications        medications[]
+  patient_diseases   patient_diseases[]
+}
+
+model doctor_credentials {
+  id                 BigInt           @id @default(autoincrement())
+  doctor_id          BigInt
+  credential_type_id Int              @db.SmallInt
+  document_url       String
+  verified           Boolean          @default(false)
+  expiry_date        DateTime?        @db.Date
+  credential_types   credential_types @relation(fields: [credential_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  doctors            doctors          @relation(fields: [doctor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([doctor_id, expiry_date], map: "idx_doctor_credentials_expiry")
+}
+
+model doctor_hospitals {
+  doctor_id   BigInt
+  hospital_id BigInt
+  doctors     doctors   @relation(fields: [doctor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  hospitals   hospitals @relation(fields: [hospital_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([doctor_id, hospital_id])
+}
+
+model doctors {
+  id                 BigInt               @id @default(autoincrement())
+  user_id            BigInt               @unique
+  specialty_id       Int                  @db.SmallInt
+  bio                String?
+  phone_number       String               @db.VarChar(20)
+  country_id         BigInt
+  appointments       appointments[]
+  doctor_credentials doctor_credentials[]
+  doctor_hospitals   doctor_hospitals[]
+  countries          countries            @relation(fields: [country_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  specialties        specialties          @relation(fields: [specialty_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users              users                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model genders {
+  id       Int        @id @default(autoincrement()) @db.SmallInt
+  code     String     @unique @db.Char(1)
+  patients patients[]
+}
+
+model hospitals {
+  id               BigInt             @id @default(autoincrement())
+  name             String             @db.VarChar(255)
+  region           String             @db.VarChar(100)
+  phone_number     String?            @db.VarChar(20)
+  country_id       BigInt?
+  doctor_hospitals doctor_hospitals[]
+  countries        countries?         @relation(fields: [country_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([region], map: "idx_hospitals_region")
+}
+
+model medical_records {
+  id          BigInt   @id @default(autoincrement())
+  patient_id  BigInt
+  file_url    String
+  record_type String?  @db.VarChar(50)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  patients    patients @relation(fields: [patient_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model medications {
+  id            BigInt                   @id @default(autoincrement())
+  patient_id    BigInt
+  disease_id    BigInt?
+  name          String                   @db.VarChar(100)
+  dosage        String                   @db.VarChar(50)
+  frequency     String                   @db.VarChar(50)
+  duration      Unsupported("interval")?
+  prescribed_at DateTime                 @default(now()) @db.Timestamptz(6)
+  diseases      diseases?                @relation(fields: [disease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  patients      patients                 @relation(fields: [patient_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([prescribed_at], map: "idx_medications_prescribed_at")
+}
+
+model patient_diseases {
+  patient_id   BigInt
+  disease_id   BigInt
+  diagnosed_at DateTime @db.Date
+  diseases     diseases @relation(fields: [disease_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  patients     patients @relation(fields: [patient_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([patient_id, disease_id])
+}
+
+model patients {
+  id               BigInt             @id @default(autoincrement())
+  user_id          BigInt             @unique
+  gender_id        Int                @db.SmallInt
+  blood_type_id    Int?               @db.SmallInt
+  phone_number     String?
+  country_id       BigInt?
+  appointments     appointments[]
+  medical_records  medical_records[]
+  medications      medications[]
+  patient_diseases patient_diseases[]
+  blood_types      blood_types?       @relation(fields: [blood_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  countries        countries?         @relation(fields: [country_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  genders          genders            @relation(fields: [gender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users            users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([blood_type_id], map: "idx_patients_blood_type")
+}
+
+model roles {
+  id    Int     @id @default(autoincrement()) @db.SmallInt
+  name  String  @unique @db.VarChar(20)
+  users users[]
+}
+
+model specialties {
+  id      Int       @id @default(autoincrement()) @db.SmallInt
+  name    String    @unique @db.VarChar(100)
+  doctors doctors[]
+}
+
+model users {
+  id            BigInt    @id @default(autoincrement())
+  username      String    @db.VarChar(255)
+  email         String    @unique @db.VarChar(255)
+  password_hash String
+  role_id       Int       @db.SmallInt
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+  last_login_at DateTime? @db.Timestamptz(6)
+  doctors       doctors?
+  patients      patients?
+  roles         roles     @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([last_login_at], map: "idx_users_last_login")
+}

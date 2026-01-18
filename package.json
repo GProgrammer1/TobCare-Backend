@@ -8,19 +8,40 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "cdk:synth": "cdk synth",
+    "cdk:deploy": "cdk deploy",
+    "cdk:diff": "cdk diff",
+    "prisma:generate": "prisma generate",
+    "prisma:studio": "prisma studio",
+    "test:lambda:patient": "tsx test/local-test-patient.ts",
+    "test:lambda:hospitals": "tsx test/local-test-hospitals.ts",
+    "test:lambda:all": "npm run test:lambda:patient && npm run test:lambda:hospitals"
   },
   "devDependencies": {
+    "@prisma/client": "^7.2.0",
+    "@types/aws-lambda": "^8.10.159",
     "@types/jest": "^30",
     "@types/node": "^24.10.1",
-    "jest": "^30",
-    "ts-jest": "^29",
+    "@types/pg": "^8.16.0",
     "aws-cdk": "2.1101.0",
+    "esbuild": "^0.27.2",
+    "jest": "^30",
+    "prisma": "^7.2.0",
+    "ts-jest": "^29",
     "ts-node": "^10.9.2",
     "typescript": "~5.9.3"
   },
   "dependencies": {
+    "@middy/core": "^7.0.2",
+    "@middy/http-error-handler": "^7.0.2",
+    "@middy/http-json-body-parser": "^7.0.2",
+    "@middy/http-response-serializer": "^7.0.2",
+    "@prisma/adapter-pg": "^7.2.0",
+    "argon2": "^0.44.0",
     "aws-cdk-lib": "^2.234.1",
-    "constructs": "^10.0.0"
+    "constructs": "^10.0.0",
+    "pg": "^8.17.1",
+    "zod": "^4.3.5"
   }
 }
