@@ -64,6 +64,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgres://placeholder' }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || 'placeholder-key' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'placeholder-jwt-secret' }}
 
   deploy:
     name: Deploy to AWS
@@ -105,4 +106,5 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
