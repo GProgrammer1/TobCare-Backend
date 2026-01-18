@@ -14,9 +14,6 @@
     "cdk:diff": "cdk diff",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
-    "test:lambda:patient": "tsx test/local-test-patient.ts",
-    "test:lambda:hospitals": "tsx test/local-test-hospitals.ts",
-    "test:lambda:all": "npm run test:lambda:patient && npm run test:lambda:hospitals"
   },
   "devDependencies": {
     "@prisma/client": "^7.2.0",
