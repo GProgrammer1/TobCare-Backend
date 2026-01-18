@@ -23,7 +23,9 @@ const prismaMiddleware = () => {
                 if (!connectionString) {
                     console.warn("DATABASE_URL not set in environment");
                 }
-                const pool = new Pool({ connectionString });
+                const pool = new Pool({ connectionString, ssl: {
+                    rejectUnauthorized: false 
+                  } });
                 const adapter = new PrismaPg(pool);
                 prisma = new PrismaClient({ adapter });
             }
