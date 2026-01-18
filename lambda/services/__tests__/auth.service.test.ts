@@ -2,9 +2,11 @@ import { loginPatient, LoginInput } from '../auth.service';
 import { PrismaClient } from '../../../lib/generated/prisma';
 import * as argon2 from 'argon2';
 import * as jwt from 'jsonwebtoken';
+import * as otpService from '../otp.service';
 
 jest.mock('argon2');
 jest.mock('jsonwebtoken');
+jest.mock('../otp.service');
 
 describe('Auth Service', () => {
     let mockPrisma: jest.Mocked<PrismaClient>;
@@ -21,8 +23,8 @@ describe('Auth Service', () => {
             },
         } as any;
 
-        (argon2.verify as jest.Mock) = jest.fn();
-        (jwt.sign as jest.Mock) = jest.fn();
+        jest.spyOn(argon2, 'verify').mockResolvedValue(true);
+        jest.spyOn(jwt, 'sign').mockReturnValue('token');
     });
 
     afterEach(() => {
@@ -33,7 +35,8 @@ describe('Auth Service', () => {
     describe('loginPatient', () => {
         const validInput: LoginInput = {
             email: 'test@example.com',
-            password: 'password123'
+            password: 'password123',
+            otp: '123456'
         };
 
         const mockUser = {
@@ -47,10 +50,11 @@ describe('Auth Service', () => {
             }
         };
 
-        it('should successfully login patient with valid credentials', async () => {
+        it('should successfully login patient with valid credentials and OTP', async () => {
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
-            (argon2.verify as jest.Mock).mockResolvedValue(true);
-            (jwt.sign as jest.Mock)
+            jest.spyOn(argon2, 'verify').mockResolvedValue(true);
+            jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: true, userId: BigInt(1) });
+            jest.spyOn(jwt, 'sign')
                 .mockReturnValueOnce('mock-access-token')
                 .mockReturnValueOnce('mock-refresh-token');
             (mockPrisma.users.update as jest.Mock).mockResolvedValue(mockUser);
@@ -68,6 +72,7 @@ describe('Auth Service', () => {
                 include: { roles: true }
             });
             expect(argon2.verify).toHaveBeenCalledWith('hashed_password', 'password123');
+            expect(otpService.verifyOtp).toHaveBeenCalledWith(mockPrisma, 'test@example.com', '123456');
             expect(jwt.sign).toHaveBeenCalledTimes(2);
             expect(mockPrisma.users.update).toHaveBeenCalledWith({
                 where: { id: BigInt(1) },
@@ -78,29 +83,56 @@ describe('Auth Service', () => {
         it('should throw error if user not found', async () => {
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(null);
 
-            await expect(loginPatient(mockPrisma, validInput)).rejects.toThrow('Invalid email or password');
+            await expect(loginPatient(mockPrisma, validInput)).rejects.toThrow('Invalid email, password, or OTP');
             expect(mockPrisma.users.findUnique).toHaveBeenCalledWith({
                 where: { email: 'test@example.com' },
                 include: { roles: true }
             });
             expect(argon2.verify).not.toHaveBeenCalled();
+            expect(otpService.verifyOtp).not.toHaveBeenCalled();
             expect(jwt.sign).not.toHaveBeenCalled();
         });
 
         it('should throw error if password is invalid', async () => {
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
-            (argon2.verify as jest.Mock).mockResolvedValue(false);
+            jest.spyOn(argon2, 'verify').mockResolvedValue(false);
 
-            await expect(loginPatient(mockPrisma, validInput)).rejects.toThrow('Invalid email or password');
+            await expect(loginPatient(mockPrisma, validInput)).rejects.toThrow('Invalid email, password, or OTP');
             expect(argon2.verify).toHaveBeenCalledWith('hashed_password', 'password123');
+            expect(otpService.verifyOtp).not.toHaveBeenCalled();
+            expect(jwt.sign).not.toHaveBeenCalled();
+            expect(mockPrisma.users.update).not.toHaveBeenCalled();
+        });
+
+        it('should throw error if OTP is invalid', async () => {
+            (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
+            jest.spyOn(argon2, 'verify').mockResolvedValue(true);
+            jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: false });
+
+            await expect(loginPatient(mockPrisma, validInput)).rejects.toThrow('Invalid email, password, or OTP');
+            expect(argon2.verify).toHaveBeenCalledWith('hashed_password', 'password123');
+            expect(otpService.verifyOtp).toHaveBeenCalledWith(mockPrisma, 'test@example.com', '123456');
+            expect(jwt.sign).not.toHaveBeenCalled();
+            expect(mockPrisma.users.update).not.toHaveBeenCalled();
+        });
+
+        it('should throw error if OTP userId does not match user id', async () => {
+            (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
+            jest.spyOn(argon2, 'verify').mockResolvedValue(true);
+            jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: true, userId: BigInt(2) }); // Different user ID
+
+            await expect(loginPatient(mockPrisma, validInput)).rejects.toThrow('Invalid email, password, or OTP');
+            expect(argon2.verify).toHaveBeenCalledWith('hashed_password', 'password123');
+            expect(otpService.verifyOtp).toHaveBeenCalledWith(mockPrisma, 'test@example.com', '123456');
             expect(jwt.sign).not.toHaveBeenCalled();
             expect(mockPrisma.users.update).not.toHaveBeenCalled();
         });
 
         it('should generate access token with correct payload and expiration', async () => {
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
-            (argon2.verify as jest.Mock).mockResolvedValue(true);
-            (jwt.sign as jest.Mock)
+            jest.spyOn(argon2, 'verify').mockResolvedValue(true);
+            jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: true, userId: BigInt(1) });
+            jest.spyOn(jwt, 'sign')
                 .mockReturnValueOnce('access-token')
                 .mockReturnValueOnce('refresh-token');
             (mockPrisma.users.update as jest.Mock).mockResolvedValue(mockUser);
@@ -122,8 +154,9 @@ describe('Auth Service', () => {
 
         it('should generate refresh token with correct payload and expiration', async () => {
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
-            (argon2.verify as jest.Mock).mockResolvedValue(true);
-            (jwt.sign as jest.Mock)
+            jest.spyOn(argon2, 'verify').mockResolvedValue(true);
+            jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: true, userId: BigInt(1) });
+            jest.spyOn(jwt, 'sign')
                 .mockReturnValueOnce('access-token')
                 .mockReturnValueOnce('refresh-token');
             (mockPrisma.users.update as jest.Mock).mockResolvedValue(mockUser);
@@ -146,15 +179,17 @@ describe('Auth Service', () => {
         it('should throw error if JWT_SECRET is not set', async () => {
             delete process.env.JWT_SECRET;
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
-            (argon2.verify as jest.Mock).mockResolvedValue(true);
+            jest.spyOn(argon2, 'verify').mockResolvedValue(true);
+            jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: true, userId: BigInt(1) });
 
             await expect(loginPatient(mockPrisma, validInput)).rejects.toThrow('JWT_SECRET environment variable is not set');
         });
 
         it('should update last_login_at timestamp on successful login', async () => {
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
-            (argon2.verify as jest.Mock).mockResolvedValue(true);
-            (jwt.sign as jest.Mock)
+            jest.spyOn(argon2, 'verify').mockResolvedValue(true);
+            jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: true, userId: BigInt(1) });
+            jest.spyOn(jwt, 'sign')
                 .mockReturnValueOnce('access-token')
                 .mockReturnValueOnce('refresh-token');
             (mockPrisma.users.update as jest.Mock).mockResolvedValue(mockUser);

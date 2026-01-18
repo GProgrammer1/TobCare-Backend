@@ -26,7 +26,7 @@ describe('Patient Service', () => {
             })) as any,
         } as any;
 
-        (argon2.hash as jest.Mock) = jest.fn().mockResolvedValue('hashed_password');
+        jest.spyOn(argon2, 'hash').mockResolvedValue('hashed_password');
     });
 
     afterEach(() => {
