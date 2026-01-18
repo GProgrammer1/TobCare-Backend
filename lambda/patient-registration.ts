@@ -5,7 +5,7 @@ import { registerPatient } from './services/patient.service';
 
 const patientSignupSchema = z.object({
     username: z.string(),
-    email: z.email(),
+    email: z.string().email(),
     password: z.string().min(6),
     gender: z.string(),
     blood_type: z.string().optional(),

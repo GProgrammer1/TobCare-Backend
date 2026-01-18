@@ -104,13 +104,21 @@ export const zodValidator = (schemaOrMap: ZodSchema | Record<string, ZodSchema>)
             if (schema) {
                 const result = schema.safeParse(request.event.body);
                 if (!result.success) {
-                    throw {
-                        statusCode: 400,
-                        body: {
-                            message: "Validation Error",
-                            errors: result.error.issues
-                        }
+                    console.error('Zod validation failed:', {
+                        path: request.event.path || request.event.resource,
+                        body: request.event.body,
+                        errors: result.error.issues
+                    });
+                    const validationError: any = new Error("Validation Error");
+                    validationError.statusCode = 400;
+                    validationError.details = {
+                        message: "Validation Error",
+                        errors: result.error.issues.map(issue => ({
+                            field: issue.path.join('.'),
+                            message: issue.message
+                        }))
                     };
+                    throw validationError;
                 }
                 request.event.body = result.data; 
             }
