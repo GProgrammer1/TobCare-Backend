@@ -29,9 +29,7 @@ export class TobCareBackendStack extends cdk.Stack {
         '@prisma/client',
         '@prisma/adapter-pg',
         'pg',
-        'argon2',
-        'zod',
-        'jsonwebtoken'
+        'argon2'
       ],
       externalModules: ['aws-sdk', '@aws-sdk/*'], 
     };
