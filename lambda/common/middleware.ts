@@ -7,7 +7,6 @@ import { PrismaClient } from '../../lib/generated/prisma';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-// Extend Context to include Prisma
 declare module 'aws-lambda' {
     export interface Context {
         prisma: PrismaClient;
@@ -40,14 +39,12 @@ const bigIntReplacer = (key: string, value: any) => {
 const responseMiddleware = () => {
     return {
         after: async (request: middy.Request) => {
-            // Default headers
             const headers = {
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Headers": "Content-Type",
                 "Access-Control-Allow-Methods": "OPTIONS,POST,GET,PUT,DELETE"
             };
 
-            // Handle void/undefined return (e.g. 204 or forgot return)
             if (request.response === undefined) {
                 request.response = {
                     statusCode: 200,
@@ -57,18 +54,15 @@ const responseMiddleware = () => {
                 return;
             }
 
-            // If handler returns { statusCode, body, ... }
             if (request.response.headers) {
                 request.response.headers = { ...headers, ...request.response.headers };
             } else {
                 request.response.headers = headers;
             }
 
-            // If body is object, stringify with BigInt support
             if (request.response.body && typeof request.response.body !== 'string') {
                 request.response.body = JSON.stringify(request.response.body, bigIntReplacer);
             }
-            // If handler returns raw object (not APIGatewayProxyResult), wrap it
             else if (!request.response.statusCode && typeof request.response === 'object') {
                 request.response = {
                     statusCode: 200,
@@ -78,7 +72,6 @@ const responseMiddleware = () => {
             }
         },
         onError: async (request: middy.Request) => {
-            // Ensure headers are present in error response
             if (request.response) {
                 request.response.headers = {
                     ...(request.response.headers || {}),
@@ -92,17 +85,14 @@ const responseMiddleware = () => {
 export const zodValidator = (schemaOrMap: ZodSchema | Record<string, ZodSchema>) => {
     return {
         before: async (request: middy.Request) => {
-            if (!request.event.body) return; // Skip if no body
+            if (!request.event.body) return; 
 
             let schema: ZodSchema | undefined;
 
-            // Check if it's a map or single schema
             if ('parse' in schemaOrMap) {
                 schema = schemaOrMap as ZodSchema;
             } else {
-                // Route matching
                 const path = request.event.path || request.event.resource;
-                // Simple exact match or includes? "includes" as per user's logic
                 const found = Object.keys(schemaOrMap).find(key => path === key || path.includes(key));
                 if (found) {
                     schema = schemaOrMap[found];
@@ -120,7 +110,7 @@ export const zodValidator = (schemaOrMap: ZodSchema | Record<string, ZodSchema>)
                         }
                     };
                 }
-                request.event.body = result.data; // Replace body with parsed data
+                request.event.body = result.data; 
             }
         }
     };
@@ -136,6 +126,6 @@ export const commonMiddleware = (handler: any, schema?: ZodSchema | Record<strin
         chain.use(zodValidator(schema));
     }
 
-    chain.use(httpErrorHandler()); // Must be last to catch errors
+    chain.use(httpErrorHandler()); 
     return chain;
 };

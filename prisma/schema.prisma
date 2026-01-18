@@ -84,6 +84,7 @@ model doctor_hospitals {
 model doctors {
   id                 BigInt               @id @default(autoincrement())
   user_id            BigInt               @unique
+  fullname           String?              @db.VarChar(255)
   specialty_id       Int                  @db.SmallInt
   bio                String?
   phone_number       String               @db.VarChar(20)
@@ -151,6 +152,7 @@ model patient_diseases {
 model patients {
   id               BigInt             @id @default(autoincrement())
   user_id          BigInt             @unique
+  fullname         String?            @db.VarChar(255)
   gender_id        Int                @db.SmallInt
   blood_type_id    Int?               @db.SmallInt
   phone_number     String?

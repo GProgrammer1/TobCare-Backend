@@ -2,7 +2,6 @@ import { registerPatient, PatientSignupInput } from '../patient.service';
 import { PrismaClient } from '../../../lib/generated/prisma';
 import * as argon2 from 'argon2';
 
-// Mock dependencies
 jest.mock('argon2');
 jest.mock('../../common/encryption', () => ({
     encrypt: jest.fn((text: string) => `encrypted_${text}`)

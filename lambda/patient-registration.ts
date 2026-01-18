@@ -13,7 +13,6 @@ const patientSignupSchema = z.object({
     country: z.string()
 });
 
-// Handler logic - routes HTTP requests to business logic
 const logic = async (event: any, context: Context) => {
     const prisma = context.prisma;
     const path = event.path || event.resource;
@@ -37,7 +36,6 @@ const logic = async (event: any, context: Context) => {
     };
 };
 
-// Export handler wrapped in middleware
 export const handler = commonMiddleware(logic, {
     '/patient_signup': patientSignupSchema
 });

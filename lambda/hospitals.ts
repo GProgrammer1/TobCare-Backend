@@ -2,7 +2,6 @@ import { commonMiddleware } from './common/middleware';
 import { Context } from 'aws-lambda';
 import { getAllHospitals } from './services/hospital.service';
 
-// Handler logic - routes HTTP requests to business logic
 const logic = async (event: any, context: Context) => {
     const prisma = context.prisma;
     const path = event.path || event.resource;
@@ -26,6 +25,5 @@ const logic = async (event: any, context: Context) => {
     };
 };
 
-// Export handler wrapped in middleware (no schema validation needed for GET)
 export const handler = commonMiddleware(logic);
 

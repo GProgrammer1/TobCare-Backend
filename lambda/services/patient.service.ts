@@ -21,28 +21,21 @@ export interface PatientSignupResult {
     country_id: bigint;
 }
 
-/**
- * Business logic for patient registration
- * This function contains the core logic and can be unit tested independently
- */
+
 export async function registerPatient(
     prisma: PrismaClient,
     input: PatientSignupInput
 ): Promise<PatientSignupResult> {
-    // Hash password with Argon2
     const password_hash = await argon2.hash(input.password);
 
-    // Encrypt sensitive info
     const encrypted_phone = encrypt(input.phone_number);
 
-    // Find role
     const patientRole = await prisma.roles.findUnique({ where: { name: 'patient' } });
     if (!patientRole) {
         throw new Error("Patient role not found");
     }
 
     const result = await prisma.$transaction(async (tx: any) => {
-        // Create User
         const user = await tx.users.create({
             data: {
                 username: input.username,
@@ -52,7 +45,6 @@ export async function registerPatient(
             }
         });
 
-        // Handle Country
         let countryRecord = await tx.countries.findFirst({
             where: { name: { equals: input.country, mode: 'insensitive' } }
         });
@@ -62,13 +54,11 @@ export async function registerPatient(
             });
         }
 
-        // Handle Gender
         let genderRecord = await tx.genders.findUnique({ where: { code: input.gender } });
         if (!genderRecord) {
             genderRecord = await tx.genders.create({ data: { code: input.gender } });
         }
 
-        // Handle Blood Type
         let bloodTypeRecord = null;
         if (input.blood_type) {
             bloodTypeRecord = await tx.blood_types.findUnique({ where: { code: input.blood_type } });
@@ -77,7 +67,6 @@ export async function registerPatient(
             }
         }
 
-        // Create Patient
         const patient = await tx.patients.create({
             data: {
                 user_id: user.id,
@@ -93,4 +82,5 @@ export async function registerPatient(
 
     return result;
 }
+
 
