@@ -181,18 +181,33 @@ model specialties {
   doctors doctors[]
 }
 
+model login_otps {
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt
+  email      String   @db.VarChar(255)
+  otp_code   String   @db.VarChar(6)
+  expires_at DateTime @db.Timestamptz(6)
+  used       Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([email, used, expires_at], map: "idx_login_otps_email")
+  @@index([user_id], map: "idx_login_otps_user_id")
+}
+
 model users {
-  id            BigInt    @id @default(autoincrement())
-  username      String    @db.VarChar(255)
-  email         String    @unique @db.VarChar(255)
+  id            BigInt      @id @default(autoincrement())
+  username      String      @db.VarChar(255)
+  email         String      @unique @db.VarChar(255)
   password_hash String
-  role_id       Int       @db.SmallInt
-  created_at    DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
-  last_login_at DateTime? @db.Timestamptz(6)
+  role_id       Int         @db.SmallInt
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime    @default(now()) @db.Timestamptz(6)
+  last_login_at DateTime?   @db.Timestamptz(6)
   doctors       doctors?
   patients      patients?
-  roles         roles     @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  login_otps    login_otps[]
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([last_login_at], map: "idx_users_last_login")
 }

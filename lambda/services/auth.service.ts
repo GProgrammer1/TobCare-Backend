@@ -1,10 +1,12 @@
 import { PrismaClient } from '../../lib/generated/prisma';
 import * as argon2 from 'argon2';
 import * as jwt from 'jsonwebtoken';
+import { verifyOtp } from './otp.service';
 
 export interface LoginInput {
     email: string;
     password: string;
+    otp: string;
 }
 
 export interface LoginResult {
@@ -56,29 +58,37 @@ function generateRefreshToken(userId: bigint, roleId: number, roleName: string):
 }
 
 /**
- * Business logic for patient login
+ * Business logic for patient login with OTP verification
  */
 export async function loginPatient(
     prisma: PrismaClient,
     input: LoginInput
 ): Promise<{ loginResult: LoginResult; refreshToken: string }> {
+    const { email, password, otp } = input;
+
     // Find user by email
     const user = await prisma.users.findUnique({
-        where: { email: input.email },
+        where: { email },
         include: { roles: true }
     });
 
     if (!user) {
-        throw new Error("Invalid email or password");
+        throw new Error("Invalid email, password, or OTP");
     }
 
     // Verify password
-    const isValidPassword = await argon2.verify(user.password_hash, input.password);
+    const isValidPassword = await argon2.verify(user.password_hash, password);
     if (!isValidPassword) {
-        throw new Error("Invalid email or password");
+        throw new Error("Invalid email, password, or OTP");
     }
 
-    // Generate tokens
+    // Verify OTP
+    const otpVerification = await verifyOtp(prisma, email, otp);
+    if (!otpVerification.valid || otpVerification.userId?.toString() !== user.id.toString()) {
+        throw new Error("Invalid email, password, or OTP");
+    }
+
+    // Generate tokens (only after successful password and OTP verification)
     const accessToken = generateAccessToken(user.id, user.role_id, user.roles.name);
     const refreshToken = generateRefreshToken(user.id, user.role_id, user.roles.name);
 

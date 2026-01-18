@@ -73,6 +73,20 @@ export class TobCareBackendStack extends cdk.Stack {
       memorySize: 256,
     });
 
+    const patientRequestOtpFn = new nodejs.NodejsFunction(this, 'PatientRequestOtpFn', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      entry: path.join(__dirname, '../lambda/patient-request-otp.ts'),
+      handler: 'handler',
+      bundling: prismaBundling,
+      environment: {
+        DATABASE_URL: process.env.DATABASE_URL || '',
+        POSTMARK_API_KEY: process.env.POSTMARK_API_KEY || '',
+        POSTMARK_FROM_EMAIL: process.env.POSTMARK_FROM_EMAIL || '',
+      },
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+    });
+
     // API Gateway
     const api = new apigw.RestApi(this, 'TobCareApi', {
       restApiName: 'TobCare API',
@@ -86,6 +100,10 @@ export class TobCareBackendStack extends cdk.Stack {
     // Patient registration endpoint
     const patientResource = api.root.addResource('patient_signup');
     patientResource.addMethod('POST', new apigw.LambdaIntegration(patientRegistrationFn));
+
+    // Patient request OTP endpoint
+    const patientRequestOtpResource = api.root.addResource('patient_request_otp');
+    patientRequestOtpResource.addMethod('POST', new apigw.LambdaIntegration(patientRequestOtpFn));
 
     // Patient login endpoint
     const patientLoginResource = api.root.addResource('patient_login');

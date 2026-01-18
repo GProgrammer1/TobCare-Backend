@@ -4,8 +4,9 @@ import { Context } from 'aws-lambda';
 import { loginPatient } from './services/auth.service';
 
 const loginSchema = z.object({
-    email: z.email(),
-    password: z.string().min(6)
+    email: z.string().email(),
+    password: z.string().min(6),
+    otp: z.string().length(6, "OTP must be 6 digits")
 });
 
 const logic = async (event: any, context: Context) => {
