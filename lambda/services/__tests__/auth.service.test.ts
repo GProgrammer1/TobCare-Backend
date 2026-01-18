@@ -1,7 +1,7 @@
 import { loginPatient, LoginInput } from '../auth.service';
 import { PrismaClient } from '../../../lib/generated/prisma';
 import * as argon2 from 'argon2';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import * as otpService from '../otp.service';
 
 jest.mock('argon2');
@@ -24,7 +24,7 @@ describe('Auth Service', () => {
         } as any;
 
         jest.spyOn(argon2, 'verify').mockResolvedValue(true);
-        jest.spyOn(jwt, 'sign').mockReturnValue('token');
+        (jwt.sign as jest.Mock) = jest.fn().mockReturnValue('token');
     });
 
     afterEach(() => {
@@ -54,7 +54,7 @@ describe('Auth Service', () => {
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
             jest.spyOn(argon2, 'verify').mockResolvedValue(true);
             jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: true, userId: BigInt(1) });
-            jest.spyOn(jwt, 'sign')
+            (jwt.sign as jest.Mock)
                 .mockReturnValueOnce('mock-access-token')
                 .mockReturnValueOnce('mock-refresh-token');
             (mockPrisma.users.update as jest.Mock).mockResolvedValue(mockUser);
@@ -132,7 +132,7 @@ describe('Auth Service', () => {
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
             jest.spyOn(argon2, 'verify').mockResolvedValue(true);
             jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: true, userId: BigInt(1) });
-            jest.spyOn(jwt, 'sign')
+            (jwt.sign as jest.Mock)
                 .mockReturnValueOnce('access-token')
                 .mockReturnValueOnce('refresh-token');
             (mockPrisma.users.update as jest.Mock).mockResolvedValue(mockUser);
@@ -156,7 +156,7 @@ describe('Auth Service', () => {
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
             jest.spyOn(argon2, 'verify').mockResolvedValue(true);
             jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: true, userId: BigInt(1) });
-            jest.spyOn(jwt, 'sign')
+            (jwt.sign as jest.Mock)
                 .mockReturnValueOnce('access-token')
                 .mockReturnValueOnce('refresh-token');
             (mockPrisma.users.update as jest.Mock).mockResolvedValue(mockUser);
@@ -189,7 +189,7 @@ describe('Auth Service', () => {
             (mockPrisma.users.findUnique as jest.Mock).mockResolvedValue(mockUser);
             jest.spyOn(argon2, 'verify').mockResolvedValue(true);
             jest.spyOn(otpService, 'verifyOtp').mockResolvedValue({ valid: true, userId: BigInt(1) });
-            jest.spyOn(jwt, 'sign')
+            (jwt.sign as jest.Mock)
                 .mockReturnValueOnce('access-token')
                 .mockReturnValueOnce('refresh-token');
             (mockPrisma.users.update as jest.Mock).mockResolvedValue(mockUser);
