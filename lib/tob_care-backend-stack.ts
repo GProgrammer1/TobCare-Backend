@@ -9,16 +9,13 @@ export class TobCareBackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Common bundling configuration for Prisma
     const prismaBundling: nodejs.BundlingOptions = {
       minify: true,
-      sourceMap: false, // Disable source maps to reduce bundle size
+      sourceMap: false, 
       commandHooks: {
         beforeBundling(inputDir: string, outputDir: string): string[] {
           return [
-            `cd ${inputDir}`,
-            // Generate Prisma Client before bundling
-            'npx prisma generate --schema=prisma/schema.prisma',
+            `cd ${inputDir} && npx prisma generate --schema=prisma/schema.prisma`,
           ];
         },
         beforeInstall(): string[] {
@@ -33,15 +30,12 @@ export class TobCareBackendStack extends cdk.Stack {
         '@prisma/adapter-pg',
         'pg',
         'argon2',
-        '@middy/core',
-        '@middy/http-json-body-parser',
-        '@middy/http-error-handler',
-        'zod'
+        'zod',
+        'jsonwebtoken'
       ],
-      externalModules: ['aws-sdk', '@aws-sdk/*'], // AWS SDK v3 is available in runtime
+      externalModules: ['aws-sdk', '@aws-sdk/*'], 
     };
 
-    // Patient Registration Lambda
     const patientRegistrationFn = new nodejs.NodejsFunction(this, 'PatientRegistrationFn', {
       runtime: lambda.Runtime.NODEJS_20_X,
       entry: path.join(__dirname, '../lambda/patient-registration.ts'),
@@ -50,14 +44,12 @@ export class TobCareBackendStack extends cdk.Stack {
       environment: {
         DATABASE_URL: process.env.DATABASE_URL || '',
         ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || '',
-        // Prisma engine location (important for Lambda)
         PRISMA_ENGINES_MIRROR: 'https://binaries.prisma.sh',
       },
       timeout: cdk.Duration.seconds(30),
-      memorySize: 512, // Argon2 needs more memory
+      memorySize: 512, 
     });
 
-    // Hospitals Lambda
     const hospitalsFn = new nodejs.NodejsFunction(this, 'HospitalsFn', {
       runtime: lambda.Runtime.NODEJS_20_X,
       entry: path.join(__dirname, '../lambda/hospitals.ts'),
@@ -65,6 +57,19 @@ export class TobCareBackendStack extends cdk.Stack {
       bundling: prismaBundling,
       environment: {
         DATABASE_URL: process.env.DATABASE_URL || '',
+      },
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+    });
+
+    const patientLoginFn = new nodejs.NodejsFunction(this, 'PatientLoginFn', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      entry: path.join(__dirname, '../lambda/patient-login.ts'),
+      handler: 'handler',
+      bundling: prismaBundling,
+      environment: {
+        DATABASE_URL: process.env.DATABASE_URL || '',
+        JWT_SECRET: process.env.JWT_SECRET || '',
       },
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
@@ -83,22 +88,14 @@ export class TobCareBackendStack extends cdk.Stack {
     // Patient registration endpoint
     const patientResource = api.root.addResource('patient_signup');
     patientResource.addMethod('POST', new apigw.LambdaIntegration(patientRegistrationFn));
-    patientResource.addMethod('OPTIONS', new apigw.MockIntegration({
-      integrationResponses: [{ statusCode: '200' }],
-      requestTemplates: { 'application/json': '{"statusCode": 200}' }
-    }), {
-      methodResponses: [{ statusCode: '200' }]
-    });
+
+    // Patient login endpoint
+    const patientLoginResource = api.root.addResource('patient_login');
+    patientLoginResource.addMethod('POST', new apigw.LambdaIntegration(patientLoginFn));
 
     // Hospitals endpoint
     const hospitalsResource = api.root.addResource('hospitals');
     hospitalsResource.addMethod('GET', new apigw.LambdaIntegration(hospitalsFn));
-    hospitalsResource.addMethod('OPTIONS', new apigw.MockIntegration({
-      integrationResponses: [{ statusCode: '200' }],
-      requestTemplates: { 'application/json': '{"statusCode": 200}' }
-    }), {
-      methodResponses: [{ statusCode: '200' }]
-    });
 
     // Output the API Gateway URL
     new cdk.CfnOutput(this, 'ApiUrl', {
