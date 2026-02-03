@@ -30,15 +30,11 @@ enum BLOODTYPE {
   @@map("BLOODTYPE")
 }
 
-// ---------------------------------------------------------------------------
-// Models
-// ---------------------------------------------------------------------------
-
 model UserRole {
   id   Int    @id @default(autoincrement())
-  role String @db.VarChar(20)
+  role String @unique @db.VarChar(20)
 
-  users User[]
+  users User[] 
 
   @@map("user_roles")
 }
@@ -50,37 +46,39 @@ model User {
   lastName     String   @map("last_name") @db.VarChar(50)
   email        String   @unique @db.VarChar(30)
   passwordHash String   @map("password_hash")
+  phoneNumber  String   @unique @map("phone_number") @db.VarChar(15)
+  countryId    BigInt   @map("country_id")
   createdAt    DateTime @default(now()) @map("created_at")
   lastLoginAt  DateTime @default(now()) @map("last_login_at")
   roleId       Int      @map("role_id")
 
-  role   UserRole @relation(fields: [roleId], references: [id])
+  role    UserRole @relation(fields: [roleId], references: [id])
+  country Country  @relation(fields: [countryId], references: [id])
   patient Patient?
 
   @@map("users")
 }
 
 model Country {
-  id        BigInt @id @default(autoincrement())
-  name      String @db.VarChar(50)
-  phoneCode String @map("phone_code") @db.VarChar(5)
+  id               BigInt @id @default(autoincrement())
+  name             String @db.VarChar(50)
+  phoneCode        String @map("phone_code") @db.VarChar(5)
+  phoneNumberLength Int  @map("phone_number_length")
 
-  patients Patient[]
+  users User[]
 
   @@map("countries")
 }
 
 model Patient {
-  id            BigInt    @id @default(autoincrement())
-  userId        BigInt    @unique @map("user_id")
-  dateOfBirth   DateTime  @map("date_of_birth") @db.Date
-  gender        GENDER
-  countryId     BigInt    @map("country_id")
-  bloodType     BLOODTYPE @map("blood_type")
-  address       String    @db.VarChar(50)
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt    @unique @map("user_id")
+  dateOfBirth DateTime  @map("date_of_birth") @db.Date
+  gender      GENDER
+  bloodType   BLOODTYPE @map("blood_type")
+  address     String    @db.VarChar(50)
 
-  user    User    @relation(fields: [userId], references: [id])
-  country Country @relation(fields: [countryId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@map("patients")
 }

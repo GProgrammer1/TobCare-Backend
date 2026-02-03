@@ -1,0 +1,4 @@
+/**
+ * Mail service interface.
+ */
+export {};
