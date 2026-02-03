@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt'
+import crypto from 'node:crypto'
 import type { PrismaClient } from '../generated/prisma/client.ts'
 import { BLOODTYPE } from '../generated/prisma/enums.ts'
 import { getMailService } from './mail/index.ts'
@@ -7,7 +8,7 @@ import { generateAccessToken, generateRefreshToken, type TokenPayload } from '..
 import type { AuthResponse } from '../types/api.ts'
 import type { RegisterPatientInput, LoginInput, VerifyLoginOtpInput } from '../validation/auth.ts'
 import { BadRequestError, UnauthorizedError, NotFoundError } from '../utils/errors.ts'
-import { encrypt, encryptDeterministic } from '../utils/encryption.ts'
+import { encrypt, encryptDeterministic, hashToken } from '../utils/encryption.ts'
 
 const BCRYPT_ROUNDS = 10
 
@@ -42,21 +43,21 @@ export async function sendOtpToEmail(email: string): Promise<void> {
 
 export async function registerPatient(prisma: PrismaClient, input: RegisterPatientInput): Promise<RegisterPatientResult> {
   if (!consumeOtp(input.email, input.otp)) {
-    throw new Error('INVALID_OTP')
+    throw new BadRequestError('Invalid or expired verification code', 'INVALID_OTP')
   }
 
   const patientRole = await prisma.userRole.findUnique({
     where: { role: 'PATIENT' },
   })
   if (!patientRole) {
-    throw new Error('PATIENT_ROLE_NOT_FOUND')
+    throw new Error('Patient role configuration missing')
   }
 
   const country = await prisma.country.findUnique({
     where: { id: BigInt(input.countryId) },
   })
   if (!country) {
-    throw new Error('COUNTRY_NOT_FOUND')
+    throw new BadRequestError('Country not found', 'COUNTRY_NOT_FOUND')
   }
 
   const digitsOnly = input.phoneNumber.replace(/\D/g, '')
@@ -109,6 +110,8 @@ export async function registerPatient(prisma: PrismaClient, input: RegisterPatie
 
   const accessToken = generateAccessToken(payload)
   const refreshToken = generateRefreshToken(payload)
+
+  await saveRefreshToken(prisma, payload.userId, refreshToken)
 
   return {
     authResponse: {
@@ -174,6 +177,8 @@ export async function verifyLoginOtp(prisma: PrismaClient, input: VerifyLoginOtp
   const accessToken = generateAccessToken(payload)
   const refreshToken = generateRefreshToken(payload)
 
+  await saveRefreshToken(prisma, payload.userId, refreshToken)
+
   return {
     authResponse: {
       userId: payload.userId,
@@ -182,4 +187,91 @@ export async function verifyLoginOtp(prisma: PrismaClient, input: VerifyLoginOtp
     },
     refreshToken,
   }
+}
+
+export async function requestPasswordReset(prisma: PrismaClient, email: string): Promise<void> {
+  const start = Date.now()
+
+  // 1. Find user by email
+  const user = await prisma.user.findUnique({
+    where: { email }
+  })
+
+  if (user) {
+    // 2. Generate raw token (high entropy)
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const hashedToken = hashToken(rawToken)
+
+    // 3. Store hashed token with 20 min expiry
+    await prisma.passwordResetToken.create({
+      data: {
+        hashedToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 20 * 60 * 1000)
+      }
+    })
+
+    // 4. Send email
+    const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password?token=${rawToken}`
+    const mail = getMailService()
+    await mail.send({
+      to: email,
+      subject: 'TobCare – Reset your password',
+      template: 'forgot-password',
+      context: { resetUrl }
+    })
+  }
+
+  // 5. Constant Time Response: (Wait if necessary to obfuscate user existence)
+  const duration = Date.now() - start
+  const minWait = 200 + Math.random() * 100 // Average processing time simulation
+  if (duration < minWait) {
+    await new Promise(resolve => setTimeout(resolve, minWait - duration))
+  }
+}
+
+export async function resetPassword(prisma: PrismaClient, input: { token: string; password: string }): Promise<void> {
+  const hashedToken = hashToken(input.token)
+
+  // 1. Find valid token
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { hashedToken },
+    include: { user: true }
+  })
+
+  if (!resetToken || resetToken.expiresAt < new Date()) {
+    throw new BadRequestError('Invalid or expired reset token', 'INVALID_RESET_TOKEN')
+  }
+
+  // 2. Hash new password
+  const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS)
+
+  // 3. Update user and cleanup in transaction
+  await prisma.$transaction(async (tx) => {
+    // Update password
+    await tx.user.update({
+      where: { id: resetToken.userId },
+      data: { passwordHash }
+    })
+
+    // Delete all reset tokens for this user
+    await tx.passwordResetToken.deleteMany({
+      where: { userId: resetToken.userId }
+    })
+
+    // Revoke all refresh tokens (Security: force re-login on all devices)
+    await tx.refreshToken.deleteMany({
+      where: { userId: resetToken.userId }
+    })
+  })
+}
+
+async function saveRefreshToken(prisma: PrismaClient, userId: string, token: string) {
+  await prisma.refreshToken.create({
+    data: {
+      token,
+      userId: BigInt(userId),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Match REFRESH_TOKEN_EXPIRY
+    },
+  })
 }

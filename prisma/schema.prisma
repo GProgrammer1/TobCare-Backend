@@ -52,11 +52,38 @@ model User {
   lastLoginAt  DateTime @default(now()) @map("last_login_at")
   roleId       Int      @map("role_id")
 
-  role    UserRole @relation(fields: [roleId], references: [id])
-  country Country  @relation(fields: [countryId], references: [id])
-  patient Patient?
+  role          UserRole             @relation(fields: [roleId], references: [id])
+  country       Country              @relation(fields: [countryId], references: [id])
+  patient       Patient?
+  refreshTokens RefreshToken[]
+  resetTokens   PasswordResetToken[]
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id          BigInt   @id @default(autoincrement())
+  hashedToken String   @unique @map("hashed_token")
+  userId      BigInt   @map("user_id")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model RefreshToken {
+  id        BigInt    @id @default(autoincrement())
+  token     String    @unique
+  userId    BigInt    @map("user_id")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
 }
 
 model Country {

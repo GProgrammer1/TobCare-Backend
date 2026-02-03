@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
-const KEY = process.env.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'; // 32 bytes hex encoded
+const KEY = process.env.ENCRYPTION_KEY!
 
 export function encrypt(text: string): string {
     const iv = crypto.randomBytes(IV_LENGTH);
@@ -53,4 +53,12 @@ export function decryptDeterministic(encrypted: string): string {
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
+}
+
+/**
+ * Creates a one-way SHA-256 hash of a token.
+ * Used for storing reset tokens in the database.
+ */
+export function hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
 }

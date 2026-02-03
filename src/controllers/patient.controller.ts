@@ -1,71 +1,79 @@
 import type { Request, Response } from 'express'
-import { z } from 'zod'
-import { Prisma } from '../generated/prisma/client.ts'
-import { registerPatientSchema } from '../validation/auth.ts'
-import { registerPatient } from '../services/auth.service.ts'
+import { registerPatientSchema, loginSchema, verifyLoginOtpSchema, forgotPasswordSchema, resetPasswordSchema } from '../validation/auth.ts'
+import { registerPatient, login, verifyLoginOtp, requestPasswordReset, resetPassword } from '../services/auth.service.ts'
 import type { ApiResponse } from '../types/api.ts'
 
 const REFRESH_TOKEN_COOKIE = 'refreshToken'
 const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 export async function registerPatientController(req: Request, res: Response): Promise<void> {
-  const parseResult = registerPatientSchema.safeParse(req.body)
-  if (!parseResult.success) {
-    const { fieldErrors } = z.flattenError(parseResult.error)
-    const firstMessage = Object.values(fieldErrors)[0]?.[0] ?? null
-    res.status(400).json({
-      success: false,
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: firstMessage ?? 'Invalid request',
-        fields: fieldErrors,
-      },
-    } satisfies ApiResponse<never>)
-    return
-  }
+  const data = registerPatientSchema.parse(req.body)
+  const result = await registerPatient(req.prisma, data)
 
+  res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: REFRESH_TOKEN_MAX_AGE_MS,
+    path: '/',
+  })
+
+  res.status(201).json({
+    success: true,
+    data: result.authResponse,
+  } satisfies ApiResponse<{ userId: string; role: string; accessToken: string }>)
+}
+
+export async function loginPatientController(req: Request, res: Response): Promise<void> {
+  const data = loginSchema.parse(req.body)
+  const result = await login(req.prisma, data)
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  } satisfies ApiResponse<{ message: string }>)
+}
+
+export async function verifyPatientLoginOtpController(req: Request, res: Response): Promise<void> {
+  const data = verifyLoginOtpSchema.parse(req.body)
+  const result = await verifyLoginOtp(req.prisma, data)
+
+  res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: REFRESH_TOKEN_MAX_AGE_MS,
+    path: '/',
+  })
+
+  res.status(200).json({
+    success: true,
+    data: result.authResponse,
+  } satisfies ApiResponse<{ userId: string; role: string; accessToken: string }>)
+}
+
+export async function forgotPasswordController(req: Request, res: Response): Promise<void> {
+  const data = forgotPasswordSchema.parse(req.body)
+
+  // Uniform response: We always return success to the client
   try {
-    const result = await registerPatient(req.prisma, parseResult.data)
-
-    res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: REFRESH_TOKEN_MAX_AGE_MS,
-      path: '/',
-    })
-
-    res.status(201).json({
-      success: true,
-      data: result.authResponse,
-    } satisfies ApiResponse<{ userId: string; role: string; accessToken: string }>)
+    await requestPasswordReset(req.prisma, data.email)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Registration failed'
-    if (message === 'INVALID_OTP') {
-      res.status(400).json({
-        success: false,
-        error: { code: 'INVALID_OTP', message: 'Invalid or expired verification code' },
-      } satisfies ApiResponse<never>)
-      return
-    }
-    if (message === 'PATIENT_ROLE_NOT_FOUND' || message === 'COUNTRY_NOT_FOUND' || message === 'INVALID_BLOOD_TYPE') {
-      res.status(500).json({
-        success: false,
-        error: { code: 'SERVER_ERROR', message: 'Server configuration error' },
-      } satisfies ApiResponse<never>)
-      return
-    }
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      res.status(409).json({
-        success: false,
-        error: { code: 'CONFLICT', message: 'Username, email, or phone number already in use' },
-      } satisfies ApiResponse<never>)
-      return
-    }
-    console.error('[registerPatient]', err)
-    res.status(500).json({
-      success: false,
-      error: { code: 'REGISTRATION_FAILED', message: 'Registration failed. Please try again.' },
-    } satisfies ApiResponse<never>)
+    console.error('[forgotPasswordController]', err)
   }
+
+  res.status(200).json({
+    success: true,
+    data: { message: 'If an account exists for this email, you will receive reset instructions shortly.' },
+  } satisfies ApiResponse<{ message: string }>)
+}
+
+export async function resetPasswordController(req: Request, res: Response): Promise<void> {
+  const data = resetPasswordSchema.parse(req.body)
+  await resetPassword(req.prisma, data)
+
+  res.status(200).json({
+    success: true,
+    data: { message: 'Password has been reset successfully.' },
+  } satisfies ApiResponse<{ message: string }>)
 }
