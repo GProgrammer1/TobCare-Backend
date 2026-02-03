@@ -51,3 +51,17 @@ export const registerPatientSchema = z
   })
 
 export type RegisterPatientInput = z.infer<typeof registerPatientSchema>
+
+export const loginSchema = z.object({
+  identifier: z.string().min(3, 'Username or Email is required'),
+  password: z.string().min(1, 'Password is required'),
+})
+
+export type LoginInput = z.infer<typeof loginSchema>
+
+export const verifyLoginOtpSchema = z.object({
+  identifier: z.string().min(3, 'Username or Email is required'),
+  otp: z.string().length(6, 'OTP must be exactly 6 digits').regex(/^[0-9]+$/, 'OTP must contain only digits'),
+})
+
+export type VerifyLoginOtpInput = z.infer<typeof verifyLoginOtpSchema>

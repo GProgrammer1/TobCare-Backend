@@ -34,7 +34,7 @@ model UserRole {
   id   Int    @id @default(autoincrement())
   role String @unique @db.VarChar(20)
 
-  users User[] 
+  users User[]
 
   @@map("user_roles")
 }
@@ -42,11 +42,11 @@ model UserRole {
 model User {
   id           BigInt   @id @default(autoincrement())
   username     String   @unique @db.VarChar(50)
-  firstName    String   @map("first_name") @db.VarChar(50)
-  lastName     String   @map("last_name") @db.VarChar(50)
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
   email        String   @unique @db.VarChar(30)
   passwordHash String   @map("password_hash")
-  phoneNumber  String   @unique @map("phone_number") @db.VarChar(15)
+  phoneNumber  String   @unique @map("phone_number")
   countryId    BigInt   @map("country_id")
   createdAt    DateTime @default(now()) @map("created_at")
   lastLoginAt  DateTime @default(now()) @map("last_login_at")
@@ -60,10 +60,10 @@ model User {
 }
 
 model Country {
-  id               BigInt @id @default(autoincrement())
-  name             String @db.VarChar(50)
-  phoneCode        String @map("phone_code") @db.VarChar(5)
-  phoneNumberLength Int  @map("phone_number_length")
+  id                BigInt @id @default(autoincrement())
+  name              String @db.VarChar(50)
+  phoneCode         String @map("phone_code") @db.VarChar(5)
+  phoneNumberLength Int    @map("phone_number_length")
 
   users User[]
 
@@ -73,10 +73,10 @@ model Country {
 model Patient {
   id          BigInt    @id @default(autoincrement())
   userId      BigInt    @unique @map("user_id")
-  dateOfBirth DateTime  @map("date_of_birth") @db.Date
+  dateOfBirth String    @map("date_of_birth")
   gender      GENDER
   bloodType   BLOODTYPE @map("blood_type")
-  address     String    @db.VarChar(50)
+  address     String
 
   user User @relation(fields: [userId], references: [id])
 

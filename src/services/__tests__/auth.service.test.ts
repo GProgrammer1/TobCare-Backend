@@ -1,9 +1,9 @@
-import { sendOtpToEmail, registerPatient } from '../auth.service'
-import type { RegisterPatientInput } from '../../validation/auth'
-import type { PrismaClient } from '../../generated/prisma/client'
+import { sendOtpToEmail, registerPatient, login, verifyLoginOtp } from '../auth.service.ts'
+import type { RegisterPatientInput } from '../../validation/auth.ts'
+import type { PrismaClient } from '../../generated/prisma/client.ts'
 import bcrypt from 'bcrypt'
-import * as otp from '../../utils/otp'
-import * as jwt from '../../utils/jwt'
+import * as otp from '../../utils/otp.ts'
+import * as jwt from '../../utils/jwt.ts'
 
 const mockMailSend = jest.fn().mockResolvedValue(undefined)
 jest.mock('../mail/index.ts', () => ({
@@ -12,6 +12,10 @@ jest.mock('../mail/index.ts', () => ({
 jest.mock('bcrypt')
 jest.mock('../../utils/otp')
 jest.mock('../../utils/jwt')
+jest.mock('../../utils/encryption', () => ({
+  encrypt: jest.fn((text) => `encrypted:${text}`),
+  encryptDeterministic: jest.fn((text) => `deterministic:${text}`),
+}))
 
 const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>
 const mockOtp = otp as jest.Mocked<typeof otp>
@@ -76,13 +80,13 @@ function createMockPrisma(): jest.Mocked<PrismaClient> {
   } as unknown as jest.Mocked<PrismaClient>
 }
 
-describe('auth.service', () => {
+describe('auth service', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockBcrypt.hash.mockResolvedValue('hashed-password' as never)
     mockOtp.consumeOtp.mockReturnValue(true)
     mockOtp.generateOtp.mockReturnValue('123456')
-    mockOtp.storeOtp.mockImplementation(() => {})
+    mockOtp.storeOtp.mockImplementation(() => { })
     mockJwt.generateAccessToken.mockReturnValue('access-token')
     mockJwt.generateRefreshToken.mockReturnValue('refresh-token')
   })
@@ -143,7 +147,7 @@ describe('auth.service', () => {
 
     it('throws PATIENT_ROLE_NOT_FOUND when role does not exist', async () => {
       const prisma = createMockPrisma()
-      ;(prisma.userRole.findUnique as jest.Mock).mockResolvedValue(null)
+        ; (prisma.userRole.findUnique as jest.Mock).mockResolvedValue(null)
 
       await expect(registerPatient(prisma, validInput)).rejects.toThrow(
         'PATIENT_ROLE_NOT_FOUND'
@@ -153,7 +157,7 @@ describe('auth.service', () => {
 
     it('throws COUNTRY_NOT_FOUND when country does not exist', async () => {
       const prisma = createMockPrisma()
-      ;(prisma.country.findUnique as jest.Mock).mockResolvedValue(null)
+        ; (prisma.country.findUnique as jest.Mock).mockResolvedValue(null)
 
       await expect(registerPatient(prisma, validInput)).rejects.toThrow('COUNTRY_NOT_FOUND')
     })
@@ -173,10 +177,102 @@ describe('auth.service', () => {
       expect(mockUserCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            phoneNumber: '+96112345678',
+            phoneNumber: 'deterministic:+96112345678',
           }),
         })
       )
+    })
+  })
+
+  describe('login', () => {
+    const loginInput = { identifier: 'johndoe', password: 'SecurePass1' }
+    const mockUser = {
+      id: BigInt(100),
+      username: 'johndoe',
+      email: 'john@example.com',
+      passwordHash: 'hashed-password',
+      role: { role: 'PATIENT' }
+    }
+
+    it('sends OTP and returns message when credentials are valid', async () => {
+      const prisma = {
+        user: { findFirst: jest.fn().mockResolvedValue(mockUser) }
+      } as unknown as jest.Mocked<PrismaClient>
+
+      mockBcrypt.compare.mockResolvedValue(true as never)
+
+      const result = await login(prisma, loginInput)
+
+      expect(prisma.user.findFirst).toHaveBeenCalled()
+      expect(mockBcrypt.compare).toHaveBeenCalledWith(loginInput.password, mockUser.passwordHash)
+      expect(mockOtp.generateOtp).toHaveBeenCalled()
+      expect(result).toEqual({ message: 'OTP_SENT' })
+    })
+
+    it('throws INVALID_CREDENTIALS when user is not found', async () => {
+      const prisma = {
+        user: { findFirst: jest.fn().mockResolvedValue(null) }
+      } as unknown as jest.Mocked<PrismaClient>
+
+      await expect(login(prisma, loginInput)).rejects.toThrow('Invalid username/email or password')
+    })
+
+    it('throws INVALID_CREDENTIALS when password does not match', async () => {
+      const prisma = {
+        user: { findFirst: jest.fn().mockResolvedValue(mockUser) }
+      } as unknown as jest.Mocked<PrismaClient>
+
+      mockBcrypt.compare.mockResolvedValue(false as never)
+
+      await expect(login(prisma, loginInput)).rejects.toThrow('Invalid username/email or password')
+    })
+  })
+
+  describe('verifyLoginOtp', () => {
+    const verifyInput = { identifier: 'johndoe', otp: '123456' }
+    const mockUser = {
+      id: BigInt(100),
+      username: 'johndoe',
+      email: 'john@example.com',
+      role: { role: 'PATIENT' }
+    }
+
+    it('returns tokens and updates lastLoginAt when OTP is valid', async () => {
+      const prisma = {
+        user: {
+          findFirst: jest.fn().mockResolvedValue(mockUser),
+          update: jest.fn().mockResolvedValue(mockUser)
+        }
+      } as unknown as jest.Mocked<PrismaClient>
+
+      const result = await verifyLoginOtp(prisma, verifyInput)
+
+      expect(prisma.user.findFirst).toHaveBeenCalled()
+      expect(mockOtp.consumeOtp).toHaveBeenCalledWith(mockUser.email, verifyInput.otp)
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: mockUser.id },
+        data: { lastLoginAt: expect.any(Date) }
+      })
+      expect(result.authResponse.userId).toBe('100')
+      expect(result.refreshToken).toBe('refresh-token')
+    })
+
+    it('throws USER_NOT_FOUND when user is not found', async () => {
+      const prisma = {
+        user: { findFirst: jest.fn().mockResolvedValue(null) }
+      } as unknown as jest.Mocked<PrismaClient>
+
+      await expect(verifyLoginOtp(prisma, verifyInput)).rejects.toThrow('User not found')
+    })
+
+    it('throws INVALID_OTP when OTP is invalid', async () => {
+      const prisma = {
+        user: { findFirst: jest.fn().mockResolvedValue(mockUser) }
+      } as unknown as jest.Mocked<PrismaClient>
+
+      mockOtp.consumeOtp.mockReturnValue(false)
+
+      await expect(verifyLoginOtp(prisma, verifyInput)).rejects.toThrow('Invalid or expired verification code')
     })
   })
 })

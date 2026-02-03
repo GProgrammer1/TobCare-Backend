@@ -5,7 +5,9 @@ import { getMailService } from './mail/index.ts'
 import { consumeOtp, generateOtp, storeOtp } from '../utils/otp.ts'
 import { generateAccessToken, generateRefreshToken, type TokenPayload } from '../utils/jwt.ts'
 import type { AuthResponse } from '../types/api.ts'
-import type { RegisterPatientInput } from '../validation/auth.ts'
+import type { RegisterPatientInput, LoginInput, VerifyLoginOtpInput } from '../validation/auth.ts'
+import { BadRequestError, UnauthorizedError, NotFoundError } from '../utils/errors.ts'
+import { encrypt, encryptDeterministic } from '../utils/encryption.ts'
 
 const BCRYPT_ROUNDS = 10
 
@@ -63,18 +65,25 @@ export async function registerPatient(prisma: PrismaClient, input: RegisterPatie
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS)
   const bloodTypePrisma = BLOOD_TYPE_MAP[input.bloodType]
   if (!bloodTypePrisma) {
-    throw new Error('INVALID_BLOOD_TYPE')
+    throw new BadRequestError('Invalid blood type', 'INVALID_BLOOD_TYPE')
   }
+
+  // Encrypt sensitive data
+  const encryptedFirstName = encrypt(input.firstName)
+  const encryptedLastName = encrypt(input.lastName)
+  const encryptedPhone = encryptDeterministic(fullPhone)
+  const encryptedAddress = encrypt(input.address)
+  const encryptedDob = encrypt(input.dateOfBirth)
 
   const user = await prisma.$transaction(async (tx) => {
     const newUser = await tx.user.create({
       data: {
         username: input.username,
-        firstName: input.firstName,
-        lastName: input.lastName,
+        firstName: encryptedFirstName,
+        lastName: encryptedLastName,
         email: input.email,
         passwordHash,
-        phoneNumber: fullPhone,
+        phoneNumber: encryptedPhone,
         countryId: BigInt(input.countryId),
         roleId: patientRole.id,
       },
@@ -83,10 +92,10 @@ export async function registerPatient(prisma: PrismaClient, input: RegisterPatie
     await tx.patient.create({
       data: {
         userId: newUser.id,
-        dateOfBirth: new Date(input.dateOfBirth),
+        dateOfBirth: encryptedDob,
         gender: input.gender,
         bloodType: bloodTypePrisma,
-        address: input.address,
+        address: encryptedAddress,
       },
     })
 
@@ -96,6 +105,70 @@ export async function registerPatient(prisma: PrismaClient, input: RegisterPatie
   const payload: TokenPayload = {
     userId: user.id.toString(),
     role: patientRole.role,
+  }
+
+  const accessToken = generateAccessToken(payload)
+  const refreshToken = generateRefreshToken(payload)
+
+  return {
+    authResponse: {
+      userId: payload.userId,
+      role: payload.role,
+      accessToken,
+    },
+    refreshToken,
+  }
+}
+
+export async function login(prisma: PrismaClient, input: LoginInput): Promise<{ message: string }> {
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: input.identifier },
+        { username: input.identifier },
+      ],
+    },
+    include: { role: true },
+  })
+
+  if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) {
+    throw new UnauthorizedError('Invalid username/email or password', 'INVALID_CREDENTIALS')
+  }
+
+  // Send OTP
+  await sendOtpToEmail(user.email)
+
+  return { message: 'OTP_SENT' }
+}
+
+export async function verifyLoginOtp(prisma: PrismaClient, input: VerifyLoginOtpInput): Promise<RegisterPatientResult> {
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: input.identifier },
+        { username: input.identifier },
+      ],
+    },
+    include: { role: true },
+  })
+
+  if (!user) {
+    throw new NotFoundError('User not found', 'USER_NOT_FOUND')
+  }
+
+  if (!consumeOtp(user.email, input.otp)) {
+    throw new BadRequestError('Invalid or expired verification code', 'INVALID_OTP')
+  }
+
+  // Update last login
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+  })
+
+  const payload: TokenPayload = {
+    userId: user.id.toString(),
+    role: user.role.role,
   }
 
   const accessToken = generateAccessToken(payload)

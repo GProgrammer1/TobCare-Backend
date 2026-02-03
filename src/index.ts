@@ -1,17 +1,16 @@
 /// <reference path="./types/express.d.ts" />
+import './config.ts'
+import dotenv from 'dotenv'
 import cors from 'cors'
 import helmet from 'helmet'
 import express from 'express'
-import dotenv from 'dotenv'
 import { getPrisma } from './lib/prisma.ts'
 import countriesRoutes from './routes/countries.routes.ts'
 import authRoutes from './routes/auth.routes.ts'
 import patientRoutes from './routes/patient/index.ts'
 import devRoutes from './routes/dev.routes.ts'
 
-dotenv.config({
-    path: process.env.NODE_ENV === 'development' ? '.env.development' : '.env.production'
-})
+
 
 const app = express()
 
@@ -24,9 +23,10 @@ app.use(express.json({
     limit: process.env.PAYLOAD_SIZE_LIMIT
 }))
 
-app.use(express.urlencoded({ extended: true,
+app.use(express.urlencoded({
+    extended: true,
     limit: process.env.PAYLOAD_SIZE_LIMIT
- }))
+}))
 
 app.use(cors({
     origin: process.env.ORIGIN,
@@ -41,7 +41,7 @@ app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/patient', patientRoutes)
 
 if (process.env.NODE_ENV === 'development') {
-  app.use('/api/v1/dev', devRoutes)
+    app.use('/api/v1/dev', devRoutes)
 }
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

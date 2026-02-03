@@ -18,4 +18,5 @@ module.exports = {
   },
   clearMocks: true,
   restoreMocks: true,
+  setupFiles: ['<rootDir>/src/test-setup.ts'],
 }
