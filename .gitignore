@@ -2,6 +2,6 @@
 # Keep environment variables out of version control
 **/.env*
 !.env.test
-/generated/prisma/*
+generated/
 !/generated/prisma/package.json
 .cursorrules

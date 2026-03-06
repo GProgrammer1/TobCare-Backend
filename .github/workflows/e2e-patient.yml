@@ -24,6 +24,8 @@ jobs:
       - run: pnpm exec prisma generate
         env:
           NODE_ENV: test
+      - run: |
+          echo '{"name":"@tobcare/prisma","version":"0.0.0","private":true,"main":"./client.ts","types":"./client.ts"}' > generated/prisma/package.json
 
       - name: Run e2e tests
         run: |
