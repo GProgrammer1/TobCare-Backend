@@ -7,6 +7,7 @@
 generator client {
   provider        = "prisma-client"
   output          = "../generated/prisma"
+  engineType      = "binary"
   previewFeatures = ["postgresqlExtensions"]
 }
 
@@ -21,13 +22,131 @@ enum UserRole {
   PATIENT
 }
 
+enum BloodType {
+  A_NEG
+  A_POS
+  B_NEG
+  B_POS
+  AB_NEG
+  AB_POS
+  O_POS
+  O_NEG
+}
+
+enum Gender {
+  M
+  F
+}
+
+enum SmokingStatus {
+  NEVER
+  FORMER
+  CURRENT
+}
+
+enum DrinkingStatus {
+  NEVER
+  OCCASIONAL
+  REGULAR
+}
+
+enum Severity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
 model User {
-  id BigInt @id @default(autoincrement())
-  firstName String @db.VarChar(255) @map("first_name")
-  lastName String @db.VarChar(255) @map("last_name")
-  email String @unique @db.Citext
-  role UserRole 
-  passwordHash String @map("password_hash")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           BigInt   @id @default(autoincrement())
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  email        String   @unique @db.Citext
+  role         UserRole
+  passwordHash String   @map("password_hash")
+  phoneNumber  String   @map("phone_number")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  patient      Patient?
+
+  @@map("users")
+}
+
+model Patient {
+  id                BigInt       @id @default(autoincrement())
+  userId            BigInt       @unique @map("user_id")
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bloodType         BloodType      @map("blood_type")
+  gender            Gender
+  smokingStatus     SmokingStatus? @map("smoking_status")
+  drinkingStatus    DrinkingStatus? @map("drinking_status")
+  heightCm          Float        @map("height_cm")
+  weightKg          Float        @map("weight_kg")
+  dateOfBirth       String       @map("date_of_birth") @db.VarChar(64) // hmac256 encrypted
+  emergencyContacts EmergencyContact[]
+  createdAt         DateTime     @default(now()) @map("created_at")   @db.Timestamptz()
+  updatedAt         DateTime     @updatedAt @map("updated_at")    @db.Timestamptz()
+  medications       Medication[]
+  diseases          Disease[]
+  allergies         Allergy[]
+
+  @@map("patients")
+}
+
+model Medication {
+  id              BigInt   @id @default(autoincrement())
+  patientId       BigInt?  @map("patient_id")
+  patient         Patient? @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name            String
+  dose            String
+  frequency       String
+  // prescribedAt DateTime? @map("prescribed_at")
+  diseaseId       BigInt?  @map("disease_id")
+  disease         Disease? @relation(fields: [diseaseId], references: [id], onDelete: SetNull)
+  allergyId       BigInt?  @map("allergy_id")
+  allergy         Allergy? @relation(fields: [allergyId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now()) @map("created_at")   @db.Timestamptz()
+  updatedAt       DateTime @updatedAt @map("updated_at")    @db.Timestamptz()
+  prescribedYear  Int?     @map("prescribed_year") // e.g. 2019
+  prescribedMonth Int?     @map("prescribed_month") // 1-12, optional  @@map("medications")
+  @@map("medications")
+}
+
+model Disease {
+  id             BigInt       @id @default(autoincrement())
+  patientId      BigInt?      @map("patient_id")
+  patient        Patient?     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name           String
+  createdAt      DateTime     @default(now()) @map("created_at")    @db.Timestamptz()
+  updatedAt      DateTime     @updatedAt @map("updated_at")   @db.Timestamptz()
+  medications    Medication[]
+  diagnosedYear  Int?         @map("diagnosed_year")
+  diagnosedMonth Int?         @map("diagnosed_month")
+
+  @@map("diseases")
+}
+
+model Allergy {
+  id             BigInt       @id @default(autoincrement())
+  patientId      BigInt?      @map("patient_id")
+  patient        Patient?     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name           String
+  severity       Severity // e.g. mild, moderate, severe
+  createdAt      DateTime     @default(now()) @map("created_at")  @db.Timestamptz()
+  updatedAt      DateTime     @updatedAt @map("updated_at")   @db.Timestamptz()
+  medications    Medication[]
+  diagnosedYear  Int?         @map("diagnosed_year")
+  diagnosedMonth Int?         @map("diagnosed_month")
+
+  @@map("allergies")
+}
+
+model EmergencyContact {
+  id        BigInt   @id @default(autoincrement())
+  patientId BigInt   @map("patient_id")
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name      String
+  phoneNumber String @map("phone_number")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+  @@map("emergency_contacts")
 }

@@ -6,14 +6,26 @@ const envPath =
     ? ".env.dev"
     : process.env.NODE_ENV === "staging"
       ? ".env.staging"
-      : ".env"
+      : process.env.NODE_ENV === "test"
+        ? ".env.test"
+        : ".env"
 dotenv.config({ path: envPath })
 
 const envSchema = z.object({
+    NODE_ENV: z.string().optional().default("development"),
     DATABASE_URL: z.url({ protocol: /^postgresql$/, error: "DATABASE_URL must be a url with the postgres protocol" }),
+    REDIS_URL: z.string().min(1, { message: "REDIS_URL must be set (e.g. redis://localhost:6379)" }),
     CORS_ORIGIN: z.url({ protocol: /^(http|https)$/, error: "CORS_ORIGIN must be a url with the http protocol" }),
     CORS_METHODS: z.string().nonempty(),
-    CORS_CREDENTIALS: z.coerce.boolean()
+    CORS_CREDENTIALS: z.coerce.boolean(),
+    OTP_TTL_SECONDS: z.coerce.number().int().positive({ message: "OTP_TTL_SECONDS must be a positive integer" }),
+    HMAC_SECRET: z.string().min(1, { message: "HMAC_SECRET must be non-empty" }),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().optional().default(587),
+    SMTP_SECURE: z.string().optional().default("false"),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    SMTP_FROM: z.string().optional(),
 })
 
 const envConfig = process.env

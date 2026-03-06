@@ -1,0 +1,7 @@
+{
+  "name": "@tobcare/prisma",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./client.ts",
+  "types": "./client.ts"
+}

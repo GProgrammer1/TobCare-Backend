@@ -4,18 +4,31 @@ import cors from "cors"
 import helmet from "helmet"
 import hpp from "hpp"
 import morgan from "morgan"
+
+// Global BigInt serializer — allows JSON.stringify to handle BigInt values
+;(BigInt.prototype as any).toJSON = function () {
+  return this.toString()
+}
 import { env } from "common/lib/env"
 import { getPrisma } from "common/lib/prisma"
+import { getRedis } from "common/lib/redis"
 import { logger } from "common/lib/logger"
 import { globalErrorHandler } from "common/middlewares/globalErrorHandler"
+import { registerContainer } from "patient/container/registry"
+import { createAuthRoutes } from "common/routes/auth.routes"
+import { createPatientRouter } from "patient/routes"
 
 export class AppServer {
-  private app: express.Application
+  public app: express.Application
   private port: number
 
   constructor(port = 3000) {
     this.app = express()
     this.port = port
+  }
+
+  private initContainer() {
+    registerContainer()
   }
 
   private initMiddlewares() {
@@ -28,29 +41,62 @@ export class AppServer {
     )
     this.app.use(helmet())
     this.app.use(hpp())
-    process.env.NODE_ENV === "development" && this.app.use(morgan("dev"))
+    env.NODE_ENV === "development" && this.app.use(morgan("dev"))
     this.app.use(express.json({ limit: "10mb" }))
     this.app.use(express.urlencoded({ extended: true, limit: "10mb" }))
-    this.app.use(globalErrorHandler)
+  }
+
+  private initRoutes() {
+    this.app.use("/api/v1/auth", createAuthRoutes())
+    this.app.use("/api/v1/patient", createPatientRouter())
   }
 
   private async initDatabase() {
     const prisma = getPrisma()
-    await prisma.$connect()
-    logger.info("Database connected")
+    type LogEvent = { message: string; target: string }
+    const onLog = (level: "info" | "warn" | "error") => (e: LogEvent) => {
+      if (level === "info") logger.info({ target: e.target, message: e.message }, "Prisma")
+      else if (level === "warn") logger.warn({ target: e.target, message: e.message }, "Prisma")
+      else logger.error({ target: e.target, message: e.message }, "Prisma")
+    }
+    ;(prisma as { $on(type: string, cb: (e: LogEvent) => void): void }).$on("info", onLog("info"))
+    ;(prisma as { $on(type: string, cb: (e: LogEvent) => void): void }).$on("warn", onLog("warn"))
+    ;(prisma as { $on(type: string, cb: (e: LogEvent) => void): void }).$on("error", onLog("error"))
+    try {
+      await prisma.$connect()
+      logger.info("Database connected")
+    } catch (err) {
+      logger.error({ err }, "Database connection failed")
+      throw err
+    }
   }
 
-  // initializing all plugins
-  async start() {
+  private async initRedis() {
+    const redis = getRedis()
+    await redis.ping()
+  }
+
+  /** Initialize everything without binding to a port */
+  async init(): Promise<express.Application> {
+    this.initContainer()
     this.initMiddlewares()
+    this.initRoutes()
+    this.app.use(globalErrorHandler)
     await this.initDatabase()
+    await this.initRedis()
+    return this.app
+  }
+
+  async start() {
+    await this.init()
     this.app.listen(this.port, () => {
       logger.info(`Server is running on port ${this.port}`)
     })
   }
-
-
 }
 
-const server = new AppServer(3000)
-server.start()
+// Only auto-start when run directly (not when imported by tests)
+if (process.env.NODE_ENV !== "test") {
+  const server = new AppServer(3000)
+  server.start()
+}

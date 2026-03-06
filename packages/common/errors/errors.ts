@@ -14,3 +14,27 @@ export class AppError extends Error {
         Object.setPrototypeOf(this, new.target.prototype)
     }
 }
+
+export class UserAlreadyExistsError extends AppError {
+    constructor(email: string) {
+        super(`User with email ${email} already exists`, 400)
+    }
+}
+
+export class BadRequestError extends AppError {
+    constructor(message: string) {
+        super(message, 400)
+    }
+}
+
+export class NotFoundError extends AppError {
+    constructor(message: string) {
+        super(message, 404)
+    }
+}
+
+export class UnauthorizedError extends AppError {
+    constructor(message: string) {
+        super(message, 401)
+    }
+}

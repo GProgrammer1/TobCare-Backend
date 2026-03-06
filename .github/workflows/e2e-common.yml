@@ -1,0 +1,36 @@
+name: E2E Common
+
+on:
+  push:
+    branches: [feat/**]
+  pull_request:
+    branches: [dev]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec prisma generate
+        env:
+          NODE_ENV: test
+
+      - name: Run e2e tests
+        run: |
+          trap 'pnpm test:down' EXIT
+          pnpm test:up
+          EXIT=0
+          pnpm test:common || EXIT=$?
+          exit $EXIT

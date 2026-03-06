@@ -5,8 +5,12 @@
   "exports": {
     "./lib/env": "./lib/env.ts",
     "./lib/prisma": "./lib/prisma.ts",
+    "./lib/redis": "./lib/redis.ts",
     "./lib/logger": "./lib/logger.ts",
-    "./errors/errors": "./errors/errors.ts"
+    "./errors/errors": "./errors/errors.ts",
+    "./utils/encryption": "./utils/encryption.ts",
+    "./container/registry": "./container/registry.ts",
+    "./routes/auth.routes": "./routes/auth.routes.ts"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -18,10 +22,20 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.2",
     "@tobcare/prisma": "workspace:*",
+    "argon2": "^0.44.0",
     "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "handlebars": "^4.7.8",
+    "ioredis": "^5.10.0",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^8.0.1",
+    "reflect-metadata": "^0.2.2",
+    "tsyringe": "^4.10.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/nodemailer": "^7.0.11",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3"
   }
