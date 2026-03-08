@@ -4,6 +4,7 @@ import cors from "cors"
 import helmet from "helmet"
 import hpp from "hpp"
 import morgan from "morgan"
+import cookieParser from "cookie-parser"
 
 // Global BigInt serializer — allows JSON.stringify to handle BigInt values
 ;(BigInt.prototype as any).toJSON = function () {
@@ -15,20 +16,26 @@ import { getRedis } from "common/lib/redis"
 import { logger } from "common/lib/logger"
 import { globalErrorHandler } from "common/middlewares/globalErrorHandler"
 import { registerContainer } from "patient/container/registry"
+import { registerDoctorContainer } from "doctor/container/registry"
+import { registerAdminContainer } from "admin/container/registry"
 import { createAuthRoutes } from "common/routes/auth.routes"
 import { createPatientRouter } from "patient/routes"
+import { createDoctorRouter } from "doctor/routes"
+import { createAdminRouter } from "admin/routes"
 
 export class AppServer {
   public app: express.Application
   private port: number
 
-  constructor(port = 3000) {
+  constructor(port = env.PORT) {
     this.app = express()
     this.port = port
   }
 
   private initContainer() {
     registerContainer()
+    registerDoctorContainer()
+    registerAdminContainer()
   }
 
   private initMiddlewares() {
@@ -44,11 +51,20 @@ export class AppServer {
     env.NODE_ENV === "development" && this.app.use(morgan("dev"))
     this.app.use(express.json({ limit: "10mb" }))
     this.app.use(express.urlencoded({ extended: true, limit: "10mb" }))
+    this.app.use(cookieParser())
+
+    // Serve uploaded files
+    this.app.use("/uploads", express.static("uploads"))
   }
 
   private initRoutes() {
+    this.app.get("/health", (_req: express.Request, res: express.Response) => {
+      res.status(200).json({ status: "ok" })
+    })
     this.app.use("/api/v1/auth", createAuthRoutes())
     this.app.use("/api/v1/patient", createPatientRouter())
+    this.app.use("/api/v1/doctor", createDoctorRouter())
+    this.app.use("/api/v1/admin", createAdminRouter())
   }
 
   private async initDatabase() {
@@ -97,6 +113,6 @@ export class AppServer {
 
 // Only auto-start when run directly (not when imported by tests)
 if (process.env.NODE_ENV !== "test") {
-  const server = new AppServer(3000)
+  const server = new AppServer()
   server.start()
 }

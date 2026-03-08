@@ -12,7 +12,7 @@ export class PatientRepository {
 
      async createPatient(patientSignupPayload: EncryptedPatientSignupDto) {
         return await this.prismaClient.$transaction(async (tx) => {
-            const user = await this.userRepository.createUser(patientSignupPayload)
+            const user = await this.userRepository.createUserInTransaction(tx, patientSignupPayload)
             await tx.patient.create({
                 data: {
                     userId: user.id,
@@ -57,7 +57,7 @@ export class PatientRepository {
                         })),
                       },
                     }),
-                    // populate medications table
+                    // populate medications table (each medication has either allergy or disease)
                     ...(patientSignupPayload.medications?.length && {
                       medications: {
                         create: patientSignupPayload.medications.map((medication) => ({
@@ -66,8 +66,12 @@ export class PatientRepository {
                           frequency: medication.frequency,
                           prescribedYear: medication.prescribedYear,
                           prescribedMonth: medication.prescribedMonth,
-                          allergy: { create: medication.allergy },
-                          disease: { create: medication.disease },
+                          ...(medication.allergy && {
+                            allergy: { create: medication.allergy },
+                          }),
+                          ...(medication.disease && {
+                            disease: { create: medication.disease },
+                          }),
                         })),
                       },
                     }),

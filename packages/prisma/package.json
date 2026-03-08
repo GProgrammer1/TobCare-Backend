@@ -1,0 +1,8 @@
+{
+  "name": "@tobcare/prisma",
+  "version": "1.0.0",
+  "main": "./generated/client.ts",
+  "exports": {
+    ".": "./generated/client.ts"
+  }
+}

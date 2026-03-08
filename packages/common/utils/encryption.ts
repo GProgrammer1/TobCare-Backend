@@ -1,6 +1,6 @@
-import { createHmac } from "node:crypto"
+import { createHmac, randomBytes } from "node:crypto"
 import * as argon2 from "argon2"
-import { sign } from "jsonwebtoken"
+import { sign, verify, type JwtPayload } from "jsonwebtoken"
 
 /**
  * Creates an HMAC-SHA256 hash of the input string using the provided secret.
@@ -61,4 +61,22 @@ export function generateRefreshToken(
 
 export function generateOtp(length: number = 6): string {
   return Array.from({ length }, () => Math.floor(Math.random() * 10)).join("")
+}
+
+/**
+ * Generates a cryptographically secure random token (hex-encoded).
+ * Used for set-password links, password reset tokens, etc.
+ * @param bytes - Number of random bytes (default: 32 → 64-char hex string)
+ * @returns Hex-encoded random token
+ */
+export function generateSecureToken(bytes: number = 32): string {
+  return randomBytes(bytes).toString("hex")
+}
+
+/**
+ * Verifies a JWT token and returns the decoded payload.
+ * Throws if the token is invalid or expired.
+ */
+export function verifyToken(token: string, secret: string): JwtPayload {
+  return verify(token, secret) as JwtPayload
 }

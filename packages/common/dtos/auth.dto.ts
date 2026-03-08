@@ -37,5 +37,11 @@ export const otpVerificationSchema = z.object({
 export type OtpRequestDto = z.infer<typeof otpRequestSchema>
 export type OtpVerificationDto = z.infer<typeof otpVerificationSchema>
 
+export const loginSchema = z.object({
+    email: z.email().max(255),
+    password: z.string().min(1),
+})
+
+export type LoginDto = z.infer<typeof loginSchema>
 export type UserSignupDto = z.infer<typeof userSignupSchema>
 export type EncryptedUserSignupDto = z.infer<typeof encryptedUserSignupSchema>

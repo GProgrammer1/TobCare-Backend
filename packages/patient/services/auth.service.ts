@@ -21,7 +21,7 @@ export class PatientAuthService {
       patientSignupRequest.email,
     )
     if (existingUser) {
-      throw new UserAlreadyExistsError(patientSignupRequest.email)
+      throw new UserAlreadyExistsError()
     }
     const encrypted = await this.encryptPatientSignupRequest(patientSignupRequest)
     return await this.patientRepository.createPatient(encrypted)
@@ -60,17 +60,21 @@ export class PatientAuthService {
         frequency: hmac256(m.frequency, secret),
         prescribedYear: m.prescribedYear,
         prescribedMonth: m.prescribedMonth,
-        allergy: {
-          name: hmac256(m.allergy.name, secret),
-          diagnosedYear: m.allergy.diagnosedYear,
-          diagnosedMonth: m.allergy.diagnosedMonth,
-          severity: m.allergy.severity,
-        },
-        disease: {
-          name: hmac256(m.disease.name, secret),
-          diagnosedYear: m.disease.diagnosedYear,
-          diagnosedMonth: m.disease.diagnosedMonth,
-        },
+        ...(m.allergy && {
+          allergy: {
+            name: hmac256(m.allergy.name, secret),
+            diagnosedYear: m.allergy.diagnosedYear,
+            diagnosedMonth: m.allergy.diagnosedMonth,
+            severity: m.allergy.severity,
+          },
+        }),
+        ...(m.disease && {
+          disease: {
+            name: hmac256(m.disease.name, secret),
+            diagnosedYear: m.disease.diagnosedYear,
+            diagnosedMonth: m.disease.diagnosedMonth,
+          },
+        }),
       })),
       heightCm: req.heightCm,
       weightKg: req.weightKg,

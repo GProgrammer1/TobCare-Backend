@@ -16,8 +16,8 @@ export class AppError extends Error {
 }
 
 export class UserAlreadyExistsError extends AppError {
-    constructor(email: string) {
-        super(`User with email ${email} already exists`, 400)
+    constructor() {
+        super("A user with this email already exists", 400)
     }
 }
 

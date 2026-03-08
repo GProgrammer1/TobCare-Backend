@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Application Update — TobCare</title>
+
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:AllowPNG/>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+
+  <style>
+    {{{styles}}}
+  </style>
+</head>
+<body class="email-body" style="margin:0; padding:0; background-color:#F5F0E8;">
+
+  <!-- Preheader -->
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+    An update on your TobCare application, {{doctorName}}.
+  </div>
+
+  <!-- Email Wrapper -->
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="email-wrapper" style="background-color:#F5F0E8; padding:40px 0;">
+    <tr>
+      <td align="center">
+
+        <!-- Card -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" class="email-card" style="max-width:560px; background-color:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px rgba(13,31,26,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td class="email-header" style="background-color:#0D1F1A; padding:32px 40px; text-align:center;">
+              <h1 class="email-header-logo" style="font-family:'Playfair Display',Georgia,serif; font-size:28px; font-weight:500; color:#F5F0E8; letter-spacing:1px; margin:0;">
+                TobCare
+              </h1>
+              <div class="email-header-accent" style="display:block; width:40px; height:3px; background-color:#C9A84C; margin:12px auto 0; border-radius:2px;"></div>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td class="email-content" style="padding:40px 40px 32px;">
+
+              <h2 class="email-heading" style="font-family:'Playfair Display',Georgia,serif; font-size:22px; font-weight:500; color:#0D1F1A; line-height:1.3; margin:0 0 16px;">
+                Application Update
+              </h2>
+
+              <p class="email-text" style="font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-size:15px; font-weight:300; color:#1A2E28; line-height:1.7; margin:0 0 24px;">
+                Dear Dr. {{doctorName}}, thank you for your interest in joining TobCare. After careful review, we regret to inform you that your application has not been approved at this time.
+              </p>
+
+              {{#if adminNotes}}
+              <!-- Admin Notes Card -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="info-card" style="background-color:#F8F6F2; border-radius:12px; padding:0; margin:0 0 28px;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                      <tr>
+                        <td style="padding:0 0 10px;">
+                          <span class="info-label" style="font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; color:#6B8C82; text-transform:uppercase; letter-spacing:0.5px;">Reviewer Notes</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <span class="info-value" style="font-family:'DM Sans',sans-serif; font-size:15px; font-weight:400; color:#1A2E28; line-height:1.6;">{{adminNotes}}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              {{/if}}
+
+              <p class="email-text" style="font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-size:15px; font-weight:300; color:#1A2E28; line-height:1.7; margin:0;">
+                If you believe this decision was made in error or would like to discuss it further, please don't hesitate to reach out to our support team.
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td>
+              <hr class="email-divider" style="border:none; height:2px; background-color:#7EC8A4; margin:0 40px 0; border-radius:1px; opacity:0.4;">
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td class="email-footer" style="padding:24px 40px 32px; text-align:center;">
+              <p class="email-footer-text" style="font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-size:12px; color:#6B8C82; line-height:1.6; margin:0;">
+                This is an automated notification from TobCare.<br>
+                © 2026 TobCare. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

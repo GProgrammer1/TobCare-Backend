@@ -6,7 +6,7 @@
 
 generator client {
   provider        = "prisma-client"
-  output          = "../generated/prisma"
+  output          = "../packages/prisma/generated"
   engineType      = "binary"
   previewFeatures = ["postgresqlExtensions"]
 }
@@ -149,4 +149,114 @@ model EmergencyContact {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
   @@map("emergency_contacts")
+}
+
+enum ApplicationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum NotificationType {
+  NEW_APPLICATION
+  APPLICATION_UPDATED
+}
+
+model Notification {
+  id        BigInt           @id @default(autoincrement())
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([read, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+
+enum Governorate {
+  BEIRUT
+  MOUNT_LEBANON
+  NORTH
+  SOUTH
+  BEKAA
+  NABATIEH
+  AKKAR
+  BAALBEK_HERMEL
+}
+
+model Hospital {
+  id                    BigInt            @id @default(autoincrement())
+  name                  String
+  doctorApplicationId   BigInt            @map("doctor_application_id")
+  doctorApplication     DoctorApplication @relation(fields: [doctorApplicationId], references: [id], onDelete: Cascade)
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt             DateTime          @updatedAt @map("updated_at") @db.Timestamptz()
+  governorate           Governorate
+  address               String?
+
+  @@map("hospitals")
+}
+
+model Clinic {
+  id                    BigInt            @id @default(autoincrement())
+  name                  String
+  address               String?
+  governorate           Governorate
+  consultationFee       Decimal?          @map("consultation_fee")
+  doctorApplicationId   BigInt            @map("doctor_application_id")
+  doctorApplication     DoctorApplication @relation(fields: [doctorApplicationId], references: [id], onDelete: Cascade)
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt             DateTime          @updatedAt @map("updated_at") @db.Timestamptz()
+
+  @@map("clinics")
+}
+
+model DoctorApplication {
+  id                    BigInt            @id @default(autoincrement())
+  createdAt             DateTime          @default(now()) @db.Timestamptz()
+  updatedAt             DateTime          @updatedAt @db.Timestamptz()
+
+  // Personal
+  firstName             String            @map("first_name")
+  lastName              String            @map("last_name")
+  email                 String            @unique
+  phone                 String
+  dateOfBirth           DateTime
+  nationalIdNumber      String            @unique
+
+  // Professional
+  lopNumber             String            @unique
+  mophLicenseNumber     String            @unique
+  specialties           String[]
+  isSpecialist          Boolean           @default(false)
+  graduationCountry     String
+  medicalSchool         String
+  graduationYear        Int
+
+  // Optional — doctor may work in clinic and/or hospital
+  clinics               Clinic[]
+  hospitals             Hospital[]
+  acceptedInsurances    String[]          @map("accepted_insurances")
+
+  // Document paths (local for now, s3 later)
+  nationalIdDoc         String         @map("national_id_doc") // path
+  lopCertificateDoc     String         @map("lop_certificate_doc") // path
+  medicalDegreeDoc      String         @map("medical_degree_doc") // path
+  mophLicenseDoc        String         @map("moph_license_doc") // path
+  specialtyDocs         String[]          @map("specialty_docs") // multiple paths for multiple specialties
+  colloquiumDoc         String?          @map("colloquium_doc") // only for foreign-trained
+  criminalRecordDoc     String          @map("criminal_record_doc") // path
+  passportPhotoDoc      String          @map("passport_photo_doc") // path
+
+  // Verification
+  status                ApplicationStatus @default(PENDING)
+  verifiedAt            DateTime? @db.Timestamptz()
+  verifiedBy            BigInt?           @map("verified_by") // admin id
+  adminNotes            String?   @map("admin_notes")
+
+  @@map("doctor_applications")
 }

@@ -7,7 +7,13 @@ let prisma: PrismaClient | undefined
 export const getPrisma = (): PrismaClient => {
   if (!prisma) {
     const connectionString = env.DATABASE_URL
-    const adapter = new PrismaPg({ connectionString })
+    const adapter = new PrismaPg({
+      connectionString,
+      // RDS requires SSL — accept Amazon-issued certs without bundling the CA
+      ...(env.NODE_ENV === "production" && {
+        ssl: { rejectUnauthorized: false },
+      }),
+    })
     prisma = new PrismaClient({
       adapter,
       log: [

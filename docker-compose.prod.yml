@@ -1,0 +1,39 @@
+# Production compose file — runs on EC2 at ~/tobcare/docker-compose.prod.yml
+# Images are built and pushed by GitHub Actions; this file only pulls them.
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: georgio123/tobcare-backend:latest
+    restart: unless-stopped
+    env_file: .env.production
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "3000:3000"
+
+  frontend:
+    image: georgio123/tobcare-frontend:latest
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  redis_data:
+  uploads_data:

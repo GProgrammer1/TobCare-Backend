@@ -9,7 +9,7 @@ const config: Config = {
     "^(\\.{1,2}/.*)\\.js$": "$1",
     "^common/(.*)$": "<rootDir>/packages/common/$1",
     "^patient/(.*)$": "<rootDir>/packages/patient/$1",
-    "^@tobcare/prisma$": "<rootDir>/generated/prisma/client.ts",
+    "^@tobcare/prisma$": "<rootDir>/packages/prisma/generated/client.ts",
   },
   transform: {
     "^.+\\.ts$": [

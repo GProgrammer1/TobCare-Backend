@@ -22,15 +22,20 @@ export const allergySchema = z.object({
     severity: z.enum(Severity)
 })
 
-export const medicationSchema = z.object({
-    name: z.string().min(1),
-    dose: z.string().min(1),
-    frequency: z.string().min(1),
-    prescribedYear: z.int().positive().lt(new Date().getFullYear()),
-    prescribedMonth: z.int().positive().gte(1).lte(12),
-    allergy: allergySchema,
-    disease: diseaseSchema
-})
+export const medicationSchema = z
+    .object({
+        name: z.string().min(1),
+        dose: z.string().min(1),
+        frequency: z.string().min(1),
+        prescribedYear: z.int().positive().lt(new Date().getFullYear()),
+        prescribedMonth: z.int().positive().gte(1).lte(12),
+        allergy: allergySchema.optional(),
+        disease: diseaseSchema.optional(),
+    })
+    .refine((data) => data.allergy !== undefined || data.disease !== undefined, {
+        message: "Medication must have either a disease or an allergy",
+        path: ["allergy"],
+    })
 export const patientSignupSchema = userSignupSchema.extend({
   dateOfBirth: z.iso.date(),
   heightCm: z.float32(),
@@ -65,15 +70,20 @@ const encryptedAllergySchema = z.object({
   severity: z.enum(Severity),
 })
 
-const encryptedMedicationSchema = z.object({
-  name: z.string().min(1),
-  dose: z.string().min(1),
-  frequency: z.string().min(1),
-  prescribedYear: z.number().int().positive(),
-  prescribedMonth: z.number().int().min(1).max(12),
-  allergy: encryptedAllergySchema,
-  disease: encryptedDiseaseSchema,
-})
+const encryptedMedicationSchema = z
+    .object({
+        name: z.string().min(1),
+        dose: z.string().min(1),
+        frequency: z.string().min(1),
+        prescribedYear: z.number().int().positive(),
+        prescribedMonth: z.number().int().min(1).max(12),
+        allergy: encryptedAllergySchema.optional(),
+        disease: encryptedDiseaseSchema.optional(),
+    })
+    .refine((data) => data.allergy !== undefined || data.disease !== undefined, {
+        message: "Medication must have either a disease or an allergy",
+        path: ["allergy"],
+    })
 
 export const encryptedPatientSignupSchema = encryptedUserSignupSchema.extend({
   // Encrypted (sensitive PII/PHI)

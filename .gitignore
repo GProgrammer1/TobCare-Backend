@@ -3,5 +3,8 @@
 **/.env*
 !.env.test
 generated/
-!/generated/prisma/package.json
+packages/prisma/generated/
+uploads/
 .cursorrules
+.cursor/
+environments/

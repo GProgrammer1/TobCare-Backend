@@ -22,7 +22,7 @@ export default defineConfig({
     alias: [
       { find: /^common\/(.*)$/, replacement: path.resolve(root, "packages/common") + "/$1" },
       { find: /^patient\/(.*)$/, replacement: path.resolve(root, "packages/patient") + "/$1" },
-      { find: "@tobcare/prisma", replacement: path.resolve(root, "generated/prisma/client.ts") },
+      { find: "@tobcare/prisma", replacement: path.resolve(root, "packages/prisma/generated/client.ts") },
     ],
   },
 })
