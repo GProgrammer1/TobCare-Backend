@@ -2,6 +2,7 @@ import { mkdir, copyFile, unlink, stat, writeFile } from "node:fs/promises"
 import { join, dirname } from "node:path"
 import { inject, singleton } from "tsyringe"
 import type { IFileStorageService, UploadResult } from "./file-storage.service"
+import { logger } from "common/lib/logger"
 
 export const FILE_STORAGE_BASE_PATH = "FileStorageBasePath"
 export const FILE_STORAGE_URL_BASE = "FileStorageUrlBase"
@@ -29,6 +30,7 @@ export class LocalFileStorageService implements IFileStorageService {
     await copyFile(localPath, destPath)
     const stats = await stat(destPath)
     const mimeType = this.getMimeType(destKey)
+    logger.debug({ key: destKey, size: stats.size }, "File uploaded")
     return {
       key: destKey,
       url: this.getUrl(destKey),
@@ -41,6 +43,7 @@ export class LocalFileStorageService implements IFileStorageService {
     const destPath = this.resolveKey(destKey)
     await mkdir(dirname(destPath), { recursive: true })
     await writeFile(destPath, buffer)
+    logger.debug({ key: destKey, size: buffer.length }, "File uploaded")
     return {
       key: destKey,
       url: this.getUrl(destKey),

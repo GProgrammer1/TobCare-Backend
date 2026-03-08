@@ -33,6 +33,7 @@ const envSchema = z.object({
     AWS_SES_REGION: z.string().optional(),
     SMTP_FROM: z.string().optional(),
     ADMIN_EMAIL: z.string().optional(),
+    LOG_FILE_PATH: z.string().optional(),
 })
 
 const envConfig = process.env

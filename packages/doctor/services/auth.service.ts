@@ -113,6 +113,7 @@ export class DoctorAuthService {
 
   private async createApplicationAndNotify(payload: ReturnType<typeof doctorApplicationPayloadSchema.parse> extends infer T ? T : never) {
     const application = await this.doctorApplicationRepository.create(payload)
+    logger.info({ applicationId: String(application.id) }, "Doctor application submitted")
 
     // Fire-and-forget: send email + admin notification
     this.sendAdminNotification(application).catch((err) => {
@@ -209,6 +210,7 @@ export class DoctorAuthService {
     // Invalidate the token so it can't be reused
     await this.redisRepository.del(redisKey)
 
+    logger.info({ applicationId: String(application.id) }, "Doctor password set")
     return { message: "Password set successfully. You can now log in." }
   }
 }

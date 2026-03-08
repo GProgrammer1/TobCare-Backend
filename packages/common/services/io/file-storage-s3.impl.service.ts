@@ -8,6 +8,7 @@ import {
   HeadObjectCommand,
 } from "@aws-sdk/client-s3"
 import type { IFileStorageService, UploadResult } from "./file-storage.service"
+import { logger } from "common/lib/logger"
 
 export const S3_BUCKET = "S3Bucket"
 export const S3_REGION = "S3Region"
@@ -43,6 +44,7 @@ export class S3FileStorageService implements IFileStorageService {
       }),
     )
 
+    logger.debug({ key: normalizedKey, size: body.length }, "File uploaded")
     return {
       key: normalizedKey,
       url: this.getUrl(normalizedKey),
@@ -63,6 +65,7 @@ export class S3FileStorageService implements IFileStorageService {
       }),
     )
 
+    logger.debug({ key: normalizedKey, size: buffer.length }, "File uploaded")
     return {
       key: normalizedKey,
       url: this.getUrl(normalizedKey),

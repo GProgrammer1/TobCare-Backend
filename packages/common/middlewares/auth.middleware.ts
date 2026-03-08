@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express"
 import { verifyToken } from "common/utils/encryption"
 import { env } from "common/lib/env"
+import { logger } from "common/lib/logger"
 
 declare global {
   namespace Express {
@@ -21,6 +22,7 @@ declare global {
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   const token = req.cookies?.access_token
   if (!token) {
+    logger.warn("Auth failed: missing token")
     res.status(401).json({ message: "Authentication required" })
     return
   }
@@ -30,6 +32,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     req.user = { sub: payload.sub, role: payload.role }
     next()
   } catch {
+    logger.warn("Auth failed: invalid or expired token")
     res.status(401).json({ message: "Invalid or expired token" })
   }
 }
@@ -46,6 +49,7 @@ export function requireRole(...roles: string[]) {
     }
 
     if (!roles.includes(req.user.role)) {
+      logger.warn({ userId: req.user.sub, role: req.user.role, required: roles }, "Auth failed: insufficient permissions")
       res.status(403).json({ message: "Insufficient permissions" })
       return
     }

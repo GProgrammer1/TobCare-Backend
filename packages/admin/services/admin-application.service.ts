@@ -45,6 +45,7 @@ export class AdminApplicationService {
     }
 
     const updated = await this.adminApplicationRepository.updateStatus(id, status, adminId, adminNotes)
+    logger.info({ applicationId: String(id), status, adminId: String(adminId) }, "Application status updated")
 
     // Only fire side effects when the status actually changes
     if (status === "VERIFIED" && existing.status !== "VERIFIED") {

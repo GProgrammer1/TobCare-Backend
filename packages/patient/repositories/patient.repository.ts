@@ -13,7 +13,7 @@ export class PatientRepository {
      async createPatient(patientSignupPayload: EncryptedPatientSignupDto) {
         return await this.prismaClient.$transaction(async (tx) => {
             const user = await this.userRepository.createUserInTransaction(tx, patientSignupPayload)
-            await tx.patient.create({
+            return tx.patient.create({
                 data: {
                     userId: user.id,
                     dateOfBirth: patientSignupPayload.dateOfBirth,

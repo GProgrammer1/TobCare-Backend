@@ -15,6 +15,7 @@ import { getPrisma } from "common/lib/prisma"
 import { getRedis } from "common/lib/redis"
 import { logger } from "common/lib/logger"
 import { globalErrorHandler } from "common/middlewares/globalErrorHandler"
+import { requestLogger } from "common/middlewares/request-logger.middleware"
 import { registerContainer } from "patient/container/registry"
 import { registerDoctorContainer } from "doctor/container/registry"
 import { registerAdminContainer } from "admin/container/registry"
@@ -52,6 +53,7 @@ export class AppServer {
     this.app.use(express.json({ limit: "10mb" }))
     this.app.use(express.urlencoded({ extended: true, limit: "10mb" }))
     this.app.use(cookieParser())
+    env.NODE_ENV !== "test" && this.app.use(requestLogger)
 
     // Serve uploaded files
     this.app.use("/uploads", express.static("uploads"))
@@ -104,6 +106,7 @@ export class AppServer {
   }
 
   async start() {
+    logger.info({ env: env.NODE_ENV, port: this.port }, "Server starting")
     await this.init()
     this.app.listen(this.port, () => {
       logger.info(`Server is running on port ${this.port}`)

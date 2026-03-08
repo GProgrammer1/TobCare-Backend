@@ -5,6 +5,7 @@
 generated/
 packages/prisma/generated/
 uploads/
+logs/
 .cursorrules
 .cursor/
 environments/

@@ -8,6 +8,7 @@ import { env } from "common/lib/env"
 import { UserRepository } from "common/repositories/user.repository"
 import { UserAlreadyExistsError } from "common/errors/errors"
 import { argon2Hash, hmac256 } from "common/utils/encryption"
+import { logger } from "common/lib/logger"
 
 @injectable()
 export class PatientAuthService {
@@ -24,7 +25,9 @@ export class PatientAuthService {
       throw new UserAlreadyExistsError()
     }
     const encrypted = await this.encryptPatientSignupRequest(patientSignupRequest)
-    return await this.patientRepository.createPatient(encrypted)
+    const result = await this.patientRepository.createPatient(encrypted)
+    logger.info({ patientId: result?.id != null ? String(result.id) : undefined }, "Patient signup")
+    return result
   }
 
   async encryptPatientSignupRequest(

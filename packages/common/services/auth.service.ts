@@ -8,6 +8,7 @@ import { RedisRepository } from "common/repositories/redis.repository"
 import { emailSubjects } from "../constants/email-subjects"
 import type { IMailService } from "../services/mail/mail.service"
 import { TemplateRendererService } from "../services/template-renderer.service"
+import { logger } from "common/lib/logger"
 
 @injectable()
 export class AuthService {
@@ -25,8 +26,9 @@ export class AuthService {
       throw new UserAlreadyExistsError()
     }
     const encryptedUserSignupReq = await this.encryptUserSignupReq(userSignupReq)
-    return await this.userRepository.createUser(encryptedUserSignupReq)
-
+    const user = await this.userRepository.createUser(encryptedUserSignupReq)
+    logger.info({ userId: user.id, role: userSignupReq.role }, "User signup")
+    return user
   }
 
   async encryptUserSignupReq(userSignupReq: UserSignupDto): Promise<EncryptedUserSignupDto> {
@@ -51,6 +53,7 @@ export class AuthService {
       throw new BadRequestError("Otp verification failed. Please request a new OTP.")
     }
     await this.redisRepository.del(hashedEmail)
+    logger.info("OTP verified")
     return { message: "OTP verified successfully" }
   }
 
@@ -81,6 +84,11 @@ export class AuthService {
       subject: emailSubjects.otpVerification,
       html,
     })
+    const parts = otpRequestReq.email.split("@")
+    const local = parts[0] ?? ""
+    const domain = parts[1] ?? "?"
+    const masked = local.length >= 2 ? `${local.slice(0, 2)}***@${domain}` : `***@${domain}`
+    logger.info({ email: masked }, "OTP sent")
     return successMessage
   }
 
@@ -113,11 +121,13 @@ export class AuthService {
     const refreshKey = `refresh:${user.id}`
     await this.redisRepository.set(refreshKey, refreshToken, env.JWT_REFRESH_EXPIRY_SECONDS)
 
+    logger.info({ userId: user.id, role: user.role }, "User login")
     return { accessToken, refreshToken, role: user.role }
   }
 
   async logout(userId: string) {
     await this.redisRepository.del(`refresh:${userId}`)
+    logger.info({ userId }, "User logout")
   }
 
   async refresh(refreshToken: string) {
@@ -140,6 +150,7 @@ export class AuthService {
       env.JWT_ACCESS_EXPIRY_SECONDS,
     )
 
+    logger.info({ userId: payload.sub }, "Token refresh")
     return { accessToken: newAccessToken, role: payload.role }
   }
 

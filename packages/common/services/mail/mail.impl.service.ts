@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer"
 import type { SendMailOptions } from "nodemailer"
-import * as aws from "@aws-sdk/client-ses"
+import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2"
 import { singleton } from "tsyringe"
 import { env } from "common/lib/env"
 import type { IMailService } from "./mail.service"
@@ -20,7 +20,6 @@ export class DevMailService implements IMailService {
         auth: { user: account.user, pass: account.pass },
       })
       const webUrl = (account as { web?: string }).web ?? "https://ethereal.email"
-      console.log("\n📧 Ethereal inbox:", webUrl, "\n")
       logger.info({ etherealUrl: webUrl }, "Ethereal test account created")
     }
     return this.transporter
@@ -30,10 +29,7 @@ export class DevMailService implements IMailService {
     const transporter = await this.getTransporter()
     const info = await transporter.sendMail(options)
     const previewUrl = nodemailer.getTestMessageUrl(info)
-    if (previewUrl) {
-      console.log("\n📧 Ethereal preview:", previewUrl, "\n")
-    }
-    logger.info(`Email sent: ${previewUrl ?? "no preview url"}`)
+    logger.info({ previewUrl: previewUrl ?? undefined }, "Email sent")
   }
 }
 
@@ -42,8 +38,11 @@ export class ProdMailService implements IMailService {
   private transporter: ReturnType<typeof nodemailer.createTransport>
 
   constructor() {
-    const ses = new aws.SESClient({ region: env.AWS_SES_REGION })
-    this.transporter = nodemailer.createTransport({ SES: { ses, aws } })
+    const region = env.AWS_SES_REGION ?? "us-east-1"
+    const sesClient = new SESv2Client({ region })
+    this.transporter = nodemailer.createTransport({
+      SES: { sesClient, SendEmailCommand },
+    })
   }
 
   async sendMail(options: SendMailOptions): Promise<void> {
