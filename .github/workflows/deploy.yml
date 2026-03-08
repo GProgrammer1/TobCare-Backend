@@ -37,54 +37,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  migrate:
-    name: Run Prisma Migrations
+  deploy:
+    name: Migrate & Deploy to EC2
     runs-on: ubuntu-latest
     needs: build-and-push
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.30.1
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      # Generate Prisma client (needs schema only, not a live DB)
-      - name: Generate Prisma client
-        run: pnpm prisma:generate
-        env:
-          DATABASE_URL: "postgresql://x:x@localhost:5432/x"
-          REDIS_URL: "redis://localhost:6379"
-          CORS_ORIGIN: "http://localhost"
-          CORS_METHODS: "GET,POST"
-          CORS_CREDENTIALS: "true"
-          OTP_TTL_SECONDS: "300"
-          HMAC_SECRET: "build-placeholder"
-          JWT_SECRET: "build-placeholder"
-
-      # Run migrations against production RDS
-      - name: Deploy migrations to RDS
-        run: pnpm prisma:migrate:deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          REDIS_URL: "redis://localhost:6379"
-          CORS_ORIGIN: "http://localhost"
-          CORS_METHODS: "GET,POST"
-          CORS_CREDENTIALS: "true"
-          OTP_TTL_SECONDS: "300"
-          HMAC_SECRET: "build-placeholder"
-          JWT_SECRET: "build-placeholder"
-
-  deploy:
-    name: Deploy to EC2
-    runs-on: ubuntu-latest
-    needs: [build-and-push, migrate]
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -98,8 +54,11 @@ jobs:
             # Pull latest backend image
             docker pull georgio123/tobcare-backend:${{ needs.build-and-push.outputs.image_tag }}
 
-            # Write the image tag for compose
+            # Update image tag in compose file
             sed -i 's|image: georgio123/tobcare-backend:.*|image: georgio123/tobcare-backend:${{ needs.build-and-push.outputs.image_tag }}|' docker-compose.prod.yml
+
+            # Run Prisma migrations inside the new image (uses .env.production on host)
+            docker compose -f docker-compose.prod.yml run --rm --no-deps backend pnpm prisma:migrate:deploy
 
             # Restart backend (redis stays up)
             docker compose -f docker-compose.prod.yml up -d --no-deps backend
